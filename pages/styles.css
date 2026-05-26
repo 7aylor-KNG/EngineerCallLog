@@ -1,0 +1,142 @@
+/* =========================================================
+   VENT ENGINEERING - SUPPORT PORTAL GLOBAL STYLESHEET
+   ========================================================= */
+
+/* --- 1. Base Styles --- */
+body { 
+    font-family: system-ui, -apple-system, sans-serif; 
+    background-color: #f9f9f9; 
+    color: #000;
+    margin: 0; 
+    padding: 20px; 
+}
+.container { max-width: 1200px; margin: 0 auto; }
+.container-narrow { max-width: 900px; margin: 0 auto; }
+h2 { margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+h3 { margin-top: 0; color: #333; }
+hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
+
+/* --- 2. Navigation Bar (Universal) --- */
+.vent-nav-bar { 
+    background: #fff; 
+    padding: 15px 20px; 
+    border: 2px solid #000;
+    border-radius: 8px; 
+    margin-bottom: 30px; 
+    display: flex; 
+    gap: 20px; 
+    align-items: center;
+}
+.vent-nav-bar a { 
+    color: #000; 
+    text-decoration: none; 
+    font-weight: bold; 
+    padding: 8px 12px;
+    border-radius: 4px;
+    transition: background 0.2s, color 0.2s;
+}
+.vent-nav-bar a:hover, .vent-nav-bar a.active { 
+    background: #000; 
+    color: #fff; 
+}
+.vent-nav-bar button {
+    margin-left: auto;
+    background: #000;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    font-weight: bold;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.vent-nav-bar button:hover { background: #333; }
+
+/* --- 3. Forms & Inputs (Log & Admin Pages) --- */
+.form-container, .panel {
+    background: #fff;
+    padding: 30px;
+    border: 2px solid #000;
+    border-radius: 8px;
+}
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-15 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; } /* Tighter gap for Log page */
+.full { grid-column: span 2; }
+label { font-weight: bold; display: block; margin-top: 15px; margin-bottom: 5px; font-size: 0.9em; }
+input, select, textarea { 
+    width: 100%; 
+    padding: 10px; 
+    border: 1px solid #000; 
+    border-radius: 4px; 
+    box-sizing: border-box; 
+    font-family: inherit; 
+    font-size: 14px;
+}
+input[readonly], textarea[readonly] {
+    background-color: #f1f1f1; border-color: #eee; color: #555;
+}
+
+/* --- 4. Buttons & Alerts --- */
+button[type="submit"], .btn-action, .btn-update { 
+    background: #000; 
+    color: white; 
+    border: none; 
+    padding: 15px 20px; 
+    font-size: 1.1em; 
+    border-radius: 4px; 
+    cursor: pointer; 
+    margin-top: 25px; 
+    font-weight: bold; 
+    width: 100%;
+    transition: background-color 0.3s ease; 
+}
+button[type="submit"]:hover, .btn-action:hover, .btn-update:hover { background: #333; }
+.btn-action:disabled { background: #888; cursor: not-allowed; }
+
+#successBanner, #messageBox {
+    display: none;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    text-align: center;
+    font-weight: bold;
+}
+.success-theme { background: #e6f4ea; color: #1e4620; border: 1px solid #1e4620; }
+.error-theme { background: #fce8e6; color: #c5221f; border: 1px solid #c5221f; }
+
+/* --- 5. Dashboard Cards & Layout --- */
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+.card { background: #fff; border: 2px solid #000; padding: 20px; border-radius: 8px; text-align: center; }
+.card h3 { margin: 0 0 10px 0; font-size: 1rem; color: #666; }
+.card .number { font-size: 2.5rem; font-weight: bold; margin: 0; }
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.chart-container { background: #fff; padding: 20px; border: 2px solid #000; border-radius: 8px; display: flex; flex-direction: column; align-items: center; }
+
+/* --- 6. Tables & Filtering (History Page) --- */
+.controls { display: flex; gap: 15px; margin-bottom: 20px; }
+#searchInput { flex-grow: 1; }
+.table-container { background: #fff; border: 2px solid #000; border-radius: 8px; overflow-x: auto; margin-bottom: 20px; }
+table { width: 100%; border-collapse: collapse; text-align: left; }
+th, td { padding: 12px 15px; border-bottom: 1px solid #ddd; }
+th { background-color: #f1f1f1; font-weight: bold; border-bottom: 2px solid #000; }
+tr:hover { background-color: #f9f9f9; cursor: pointer; }
+
+/* Status Badges */
+.badge { padding: 5px 10px; border-radius: 20px; font-size: 0.85em; font-weight: bold; color: #fff; display: inline-block; }
+.bg-open { background-color: #dc3545; }
+.bg-closed { background-color: #28a745; }
+.bg-waiting { background-color: #ffc107; color: #000; }
+.bg-site { background-color: #17a2b8; }
+#loadMoreBtn { margin: 0 auto 40px auto; width: 250px; text-align: center; display: none; }
+
+/* --- 7. Modals (History Page Pop-up) --- */
+.modal-overlay {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.7); justify-content: center; align-items: center; z-index: 1000;
+}
+.modal-content {
+    background: #fff; padding: 30px; border-radius: 8px; border: 2px solid #000;
+    width: 100%; max-width: 700px; max-height: 90vh; overflow-y: auto; position: relative;
+}
+.close-btn { position: absolute; top: 15px; right: 20px; font-size: 24px; font-weight: bold; cursor: pointer; color: #666; }
+.close-btn:hover { color: #000; }
