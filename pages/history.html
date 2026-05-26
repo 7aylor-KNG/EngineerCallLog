@@ -2,11 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Vent Engineering Support</title>
+    <title>Ticket History - Vent Engineering</title>
     <link rel="stylesheet" href="style.css">
     <script src="nav.js"></script>
-    
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
@@ -68,7 +66,7 @@
                         <input type="text" id="modalContact" readonly>
                     </div>
                     <div>
-                        <label>Origin of Fault</label>
+                        <label>Origin of Query / Fault</label>
                         <input type="text" id="modalOrigin" readonly>
                     </div>
                 </div>
@@ -76,7 +74,7 @@
                 <label>Reported Issue</label>
                 <textarea id="modalIssue" rows="3" readonly></textarea>
 
-                <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+                <hr>
                 <p style="margin:0; font-size: 0.85em; color: #666; font-weight: bold;">EDITABLE FIELDS BELOW</p>
 
                 <label>Update Status</label>
@@ -102,7 +100,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, getDocs, doc, updateDoc, query, orderBy, limit, startAfter } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -119,30 +117,19 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // State variables for Pagination
         let allTickets = [];
         let lastVisibleDoc = null;
         const TICKETS_PER_PAGE = 50;
 
-        // 1. Authentication Check
         onAuthStateChanged(auth, (user) => {
             if (!user) window.location.href = "../index.html";
-            else fetchTickets(false); // false means initial load
+            else fetchTickets(false); 
         });
 
-        // 2. Universal Logout Handler
-        document.addEventListener('click', (e) => {
-            if(e.target && e.target.id === 'logoutBtn') {
-                signOut(auth).then(() => window.location.href = "../index.html");
-            }
-        });
-
-        // 3. Load More Button Handler
         document.getElementById('loadMoreBtn').addEventListener('click', () => {
-            fetchTickets(true); // true means load the next batch
+            fetchTickets(true); 
         });
 
-        // Fetch Data from Database (Chunked)
         async function fetchTickets(isLoadMore) {
             const loadBtn = document.getElementById('loadMoreBtn');
             
@@ -153,27 +140,22 @@
 
             try {
                 let q;
-                // If we are loading more, start after the last document we saw
                 if (isLoadMore && lastVisibleDoc) {
                     q = query(collection(db, "tickets"), orderBy("ticketId", "desc"), startAfter(lastVisibleDoc), limit(TICKETS_PER_PAGE));
                 } else {
-                    // Initial load: Just get the top 50
                     q = query(collection(db, "tickets"), orderBy("ticketId", "desc"), limit(TICKETS_PER_PAGE));
-                    allTickets = []; // Clear array on fresh load
+                    allTickets = []; 
                 }
 
                 const querySnapshot = await getDocs(q);
                 
                 if (!querySnapshot.empty) {
-                    // Save the cursor for the next batch
                     lastVisibleDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
                     
-                    // Add new tickets to our local memory
                     querySnapshot.forEach((doc) => {
                         allTickets.push({ docId: doc.id, ...doc.data() });
                     });
 
-                    // If we got fewer tickets back than we asked for, we hit the end of the database
                     if (querySnapshot.docs.length < TICKETS_PER_PAGE) {
                         loadBtn.style.display = 'none';
                     } else {
@@ -182,7 +164,6 @@
                         loadBtn.disabled = false;
                     }
                 } else {
-                    // Database is completely empty, or we reached the absolute end
                     loadBtn.style.display = 'none';
                 }
                 
@@ -193,7 +174,6 @@
             }
         }
 
-        // Render the Table
         function renderTable() {
             const tbody = document.getElementById('tableBody');
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
@@ -244,11 +224,9 @@
             });
         }
 
-        // Event Listeners for Search & Filter
         document.getElementById('searchInput').addEventListener('input', renderTable);
         document.getElementById('statusFilter').addEventListener('change', renderTable);
 
-        // --- Modal Logic ---
         const modal = document.getElementById('ticketModal');
         
         function openModal(docId) {
@@ -277,7 +255,6 @@
         document.getElementById('closeModal').onclick = () => modal.style.display = 'none';
         window.onclick = (event) => { if (event.target == modal) modal.style.display = 'none'; }
 
-        // Update Submission
         document.getElementById('updateForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btnUpdate');
