@@ -37,6 +37,7 @@
             border: 2px solid #000;
             border-radius: 8px;
             overflow-x: auto;
+            margin-bottom: 20px;
         }
         table {
             width: 100%;
@@ -64,7 +65,17 @@
         .bg-waiting { background-color: #ffc107; color: #000; }
         .bg-site { background-color: #17a2b8; }
 
-        /* Modal Styling (Hidden by default) */
+        /* Buttons */
+        .btn-action {
+            background: #000; color: white; border: none; padding: 12px 20px; font-size: 1em; 
+            border-radius: 4px; cursor: pointer; font-weight: bold; display: block;
+        }
+        .btn-action:hover { background: #333; }
+        .btn-action:disabled { background: #888; cursor: not-allowed; }
+
+        #loadMoreBtn { margin: 0 auto 40px auto; width: 250px; text-align: center; display: none; }
+
+        /* Modal Styling */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -103,11 +114,6 @@
         .modal-content input[readonly], .modal-content textarea[readonly] {
             background-color: #f1f1f1; border-color: #eee; color: #555;
         }
-        .btn-update {
-            background: #000; color: white; border: none; padding: 12px 20px; font-size: 1em; 
-            border-radius: 4px; cursor: pointer; margin-top: 20px; font-weight: bold; width: 100%;
-        }
-        .btn-update:hover { background: #333; }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
     </style>
 </head>
@@ -118,7 +124,7 @@
         <h2 style="margin-top: 0;">Ticket History</h2>
 
         <div class="controls">
-            <input type="text" id="searchInput" placeholder="Search by Ticket Number, Engineer, or Issue...">
+            <input type="text" id="searchInput" placeholder="Filter loaded tickets by Number, Engineer, or Issue...">
             <select id="statusFilter">
                 <option value="All">All Statuses</option>
                 <option value="Open">Open</option>
@@ -145,6 +151,8 @@
                 </tbody>
             </table>
         </div>
+
+        <button id="loadMoreBtn" class="btn-action">Load Older Tickets</button>
     </div>
 
     <div class="modal-overlay" id="ticketModal">
@@ -194,7 +202,7 @@
                 <label>Solution</label>
                 <textarea id="modalSolution" rows="2" style="border-color: #000;"></textarea>
 
-                <button type="submit" class="btn-update" id="btnUpdate">Save Updates</button>
+                <button type="submit" class="btn-action" style="width: 100%; margin-top: 20px;" id="btnUpdate">Save Updates</button>
                 
                 <p id="modalAuditLog" style="margin-top: 15px; font-size: 0.8em; color: #888; text-align: right;"></p>
             </form>
@@ -204,7 +212,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, collection, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, updateDoc, query, orderBy, limit, startAfter } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCP85SLMa90kxu0lJVLL0qFUWgHZvZsAOM",
@@ -220,34 +228,73 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        // State variables for Pagination
         let allTickets = [];
+        let lastVisibleDoc = null;
+        const TICKETS_PER_PAGE = 50;
 
         // 1. Authentication Check
         onAuthStateChanged(auth, (user) => {
             if (!user) window.location.href = "../index.html";
-            else fetchTickets();
+            else fetchTickets(false); // false means initial load
         });
 
         // 2. Universal Logout Handler
         document.addEventListener('click', (e) => {
             if(e.target && e.target.id === 'logoutBtn') {
-                signOut(auth).then(() => {
-                    window.location.href = "../index.html";
-                });
+                signOut(auth).then(() => window.location.href = "../index.html");
             }
         });
 
-        // Fetch Data
-        async function fetchTickets() {
+        // 3. Load More Button Handler
+        document.getElementById('loadMoreBtn').addEventListener('click', () => {
+            fetchTickets(true); // true means load the next batch
+        });
+
+        // Fetch Data from Database (Chunked)
+        async function fetchTickets(isLoadMore) {
+            const loadBtn = document.getElementById('loadMoreBtn');
+            
+            if (isLoadMore) {
+                loadBtn.innerText = "Loading...";
+                loadBtn.disabled = true;
+            }
+
             try {
-                const querySnapshot = await getDocs(collection(db, "tickets"));
-                allTickets = [];
-                querySnapshot.forEach((doc) => {
-                    allTickets.push({ docId: doc.id, ...doc.data() });
-                });
+                let q;
+                // If we are loading more, start after the last document we saw
+                if (isLoadMore && lastVisibleDoc) {
+                    q = query(collection(db, "tickets"), orderBy("ticketId", "desc"), startAfter(lastVisibleDoc), limit(TICKETS_PER_PAGE));
+                } else {
+                    // Initial load: Just get the top 50
+                    q = query(collection(db, "tickets"), orderBy("ticketId", "desc"), limit(TICKETS_PER_PAGE));
+                    allTickets = []; // Clear array on fresh load
+                }
+
+                const querySnapshot = await getDocs(q);
                 
-                // Sort by Ticket ID descending (newest at the top)
-                allTickets.sort((a, b) => (b.ticketId || 0) - (a.ticketId || 0));
+                if (!querySnapshot.empty) {
+                    // Save the cursor for the next batch
+                    lastVisibleDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
+                    
+                    // Add new tickets to our local memory
+                    querySnapshot.forEach((doc) => {
+                        allTickets.push({ docId: doc.id, ...doc.data() });
+                    });
+
+                    // If we got fewer tickets back than we asked for, we hit the end of the database
+                    if (querySnapshot.docs.length < TICKETS_PER_PAGE) {
+                        loadBtn.style.display = 'none';
+                    } else {
+                        loadBtn.style.display = 'block';
+                        loadBtn.innerText = "Load Older Tickets";
+                        loadBtn.disabled = false;
+                    }
+                } else {
+                    // Database is completely empty, or we reached the absolute end
+                    loadBtn.style.display = 'none';
+                }
+                
                 renderTable();
             } catch (error) {
                 console.error("Error fetching tickets:", error);
@@ -288,7 +335,6 @@
                 let shortIssue = t.Reported_Issue || '';
                 if (shortIssue.length > 45) shortIssue = shortIssue.substring(0, 45) + '...';
 
-                // Format Date and Time nicely
                 let dateTimeDisplay = t.Date || 'N/A';
                 if (t.Time) dateTimeDisplay += ` <br><span style="font-size:0.85em; color:#666;">${t.Time}</span>`;
 
@@ -318,7 +364,6 @@
             const ticket = allTickets.find(t => t.docId === docId);
             if (!ticket) return;
 
-            // Populate Read-Only fields
             document.getElementById('modalTitle').innerText = `Update ${ticket.ticketNumber}`;
             document.getElementById('modalDocId').value = docId;
             document.getElementById('modalEngineer').value = ticket.Engineer || '';
@@ -327,12 +372,10 @@
             document.getElementById('modalOrigin').value = ticket.Origin_Of_Fault || '';
             document.getElementById('modalIssue').value = ticket.Reported_Issue || '';
             
-            // Editable fields
             document.getElementById('modalStatus').value = ticket.Status || 'Open';
             document.getElementById('modalCause').value = ticket.Cause || '';
             document.getElementById('modalSolution').value = ticket.Solution || '';
 
-            // Audit Log Details
             const creator = ticket.createdBy || 'Legacy User';
             const updater = ticket.lastUpdatedBy || ticket.createdBy || 'Legacy User';
             document.getElementById('modalAuditLog').innerText = `Created by: ${creator} | Last updated by: ${updater}`;
@@ -356,17 +399,15 @@
             btn.disabled = true;
 
             try {
-                // Update Firestore including AUDIT fields
                 const ticketRef = doc(db, "tickets", docId);
                 await updateDoc(ticketRef, {
                     Status: newStatus,
                     Cause: newCause,
                     Solution: newSolution,
-                    lastUpdatedBy: auth.currentUser.email, // AUDIT: Log who made the edit
+                    lastUpdatedBy: auth.currentUser.email,
                     lastUpdatedTimestamp: new Date().toISOString()
                 });
 
-                // Update local memory so table reflects changes immediately
                 const index = allTickets.findIndex(t => t.docId === docId);
                 if (index !== -1) {
                     allTickets[index].Status = newStatus;
@@ -375,8 +416,8 @@
                     allTickets[index].lastUpdatedBy = auth.currentUser.email;
                 }
 
-                renderTable(); // Re-draw table
-                modal.style.display = 'none'; // Close modal
+                renderTable();
+                modal.style.display = 'none'; 
                 
             } catch (error) {
                 console.error("Error updating document: ", error);
