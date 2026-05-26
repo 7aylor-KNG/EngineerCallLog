@@ -2,11 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Vent Engineering Support</title>
+    <title>Settings - Vent Engineering</title>
     <link rel="stylesheet" href="style.css">
     <script src="nav.js"></script>
-    
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container-narrow">
@@ -16,10 +14,9 @@
 
         <div class="grid">
             <div class="panel">
-                <h3>Account Management</h3>
-                <p>Logged in as: <strong id="userEmail">Loading...</strong></p>
-                <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-                
+                <h3>Your Account</h3>
+                <p>Logged in as: <strong id="userEmail" style="word-break: break-all;">Loading...</strong></p>
+                <hr>
                 <form id="passwordForm">
                     <label>Update Password</label>
                     <input type="password" id="newPassword" placeholder="Enter new password (min 6 chars)" required minlength="6">
@@ -28,17 +25,32 @@
             </div>
 
             <div class="panel">
+                <h3>Add New Engineer</h3>
+                <p>Create a new login for a team member.</p>
+                <hr>
+                <form id="addUserForm">
+                    <label>Email Address</label>
+                    <input type="email" id="newUserEmail" placeholder="engineer@vent.co.uk" required>
+                    
+                    <label>Temporary Password</label>
+                    <input type="password" id="newUserPassword" placeholder="Minimum 6 characters" required minlength="6">
+                    
+                    <button type="submit" class="btn-action">Create Account</button>
+                </form>
+            </div>
+
+            <div class="panel" style="grid-column: 1 / -1;">
                 <h3>Database Actions</h3>
                 <p>Export all support log tickets currently stored in the Firebase cloud database directly to a local CSV file on your computer.</p>
-                
-                <button id="exportBtn" class="btn-action" style="margin-top: 45px;">Download Database to CSV</button>
+                <button id="exportBtn" class="btn-action" style="max-width: 300px;">Download Database to CSV</button>
             </div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        // Import createUserWithEmailAndPassword for the secondary app trick
+        import { getAuth, onAuthStateChanged, signOut, updatePassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, getDocs, orderBy, query } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -51,19 +63,25 @@
             measurementId: "G-F5LM9FBQ8Q"
         };
 
+        // Initialize Primary App
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+
+        // Initialize Secondary App (Used exclusively for creating users without logging the admin out)
+        const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
+        const secondaryAuth = getAuth(secondaryApp);
+
         const messageBox = document.getElementById('messageBox');
 
         function showMessage(msg, isError = false) {
             messageBox.innerText = msg;
-            messageBox.className = isError ? 'error' : 'success';
+            messageBox.className = isError ? 'error-theme' : 'success-theme';
             messageBox.style.display = 'block';
-            setTimeout(() => { messageBox.style.display = 'none'; }, 5000);
+            setTimeout(() => { messageBox.style.display = 'none'; }, 6000);
         }
 
-        // 1. Authentication Check & Display Email
+        // 1. Primary Authentication Check
         onAuthStateChanged(auth, (user) => {
             if (!user) {
                 window.location.href = "../index.html";
@@ -72,7 +90,7 @@
             }
         });
 
-        // Universal Logout Handler (Moved to the document level to catch the button inside the web component)
+        // 2. Universal Logout Handler 
         document.addEventListener('click', (e) => {
             if(e.target && e.target.id === 'logoutBtn') {
                 signOut(auth).then(() => {
@@ -81,9 +99,14 @@
             }
         });
 
-        // 3. Update Password
+        // 3. Update Own Password
         document.getElementById('passwordForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const btn = e.target.querySelector('button');
+            const originalText = btn.innerText;
+            btn.innerText = "Updating...";
+            btn.disabled = true;
+
             const newPassword = document.getElementById('newPassword').value;
             const user = auth.currentUser;
 
@@ -98,11 +121,47 @@
                     } else {
                         showMessage(error.message, true);
                     }
+                } finally {
+                    btn.innerText = originalText;
+                    btn.disabled = false;
                 }
             }
         });
 
-        // 4. Export to CSV Logic (Matches the newest database headings)
+        // 4. Create New User (Secondary App Trick)
+        document.getElementById('addUserForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            const originalText = btn.innerText;
+            btn.innerText = "Creating Account...";
+            btn.disabled = true;
+
+            const newUserEmail = document.getElementById('newUserEmail').value;
+            const newUserPassword = document.getElementById('newUserPassword').value;
+
+            try {
+                // Create the user on the secondary invisible connection
+                await createUserWithEmailAndPassword(secondaryAuth, newUserEmail, newUserPassword);
+                
+                // Immediately sign them out of the secondary connection
+                await signOut(secondaryAuth);
+                
+                showMessage(`Successfully created account for ${newUserEmail}. They can now log in.`);
+                document.getElementById('addUserForm').reset();
+            } catch (error) {
+                console.error("Error creating user:", error);
+                if (error.code === 'auth/email-already-in-use') {
+                    showMessage("An account with this email address already exists.", true);
+                } else {
+                    showMessage("Failed to create user: " + error.message, true);
+                }
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        });
+
+        // 5. Export to CSV Logic
         document.getElementById('exportBtn').addEventListener('click', async () => {
             const btn = document.getElementById('exportBtn');
             btn.innerText = "Generating CSV...";
