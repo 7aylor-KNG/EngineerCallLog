@@ -82,10 +82,11 @@
             margin-top: 25px; 
             font-weight: bold; 
             width: 100%;
+            transition: background-color 0.3s ease; /* Smooth color transition */
         }
         button[type="submit"]:hover { background: #333; }
         
-        /* Success Message */
+        /* Success Message Banner (Optional now that button changes, but good to keep) */
         #successBanner {
             display: none;
             background: #e6f4ea;
@@ -249,8 +250,12 @@
         document.getElementById('ticketForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const submitBtn = document.getElementById('submitBtn');
-            submitBtn.innerText = "Saving...";
+            const originalText = "Submit Ticket";
+            
+            // Immediate visual feedback that processing has started
+            submitBtn.innerText = "Saving to Database...";
             submitBtn.disabled = true;
+            submitBtn.style.backgroundColor = '#666'; // Gray out while saving
 
             try {
                 // Determine the next ticket number
@@ -288,24 +293,41 @@
                 // Push to Firestore
                 await addDoc(collection(db, "tickets"), ticketData);
 
-                // Show success, reset form
+                // SUCCESS: Change button to Green
+                submitBtn.style.backgroundColor = '#28a745'; 
+                submitBtn.innerText = `Saved! (TKT-${newTicketId})`;
+                
+                // Show success banner 
                 const banner = document.getElementById('successBanner');
                 banner.innerText = `Ticket TKT-${newTicketId} Logged Successfully!`;
                 banner.style.display = 'block';
                 
+                // Reset form
                 document.getElementById('ticketForm').reset();
                 setDateTime(); // reset date and time to now
                 systemOtherInput.style.display = 'none'; // hide the other box again
                 
-                // Hide banner after 5 seconds
-                setTimeout(() => { banner.style.display = 'none'; }, 5000);
+                // Reset button and banner after 3 seconds
+                setTimeout(() => { 
+                    banner.style.display = 'none'; 
+                    submitBtn.style.backgroundColor = '#000'; // Back to standard black
+                    submitBtn.innerText = originalText;
+                    submitBtn.disabled = false;
+                }, 3000);
 
             } catch (error) {
                 console.error("Error adding document: ", error);
-                alert("Error saving ticket. Check console for details.");
-            } finally {
-                submitBtn.innerText = "Submit Ticket";
-                submitBtn.disabled = false;
+                
+                // FAILURE: Change button to Red
+                submitBtn.style.backgroundColor = '#dc3545';
+                submitBtn.innerText = "Error Saving Ticket";
+                
+                // Reset button after 4 seconds so they can try again
+                setTimeout(() => {
+                    submitBtn.style.backgroundColor = '#000'; // Back to standard black
+                    submitBtn.innerText = originalText;
+                    submitBtn.disabled = false;
+                }, 4000);
             }
         });
     </script>
