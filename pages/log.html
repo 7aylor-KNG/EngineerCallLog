@@ -118,6 +118,10 @@
                     <input type="date" id="Date" required>
                 </div>
                 <div>
+                    <label>Time</label>
+                    <input type="time" id="Time" required>
+                </div>
+                <div>
                     <label>Engineer</label>
                     <input type="text" id="Engineer" required>
                 </div>
@@ -125,7 +129,7 @@
                     <label>Contact Via</label>
                     <select id="Contact_Via">
                         <option value="Phone">Phone</option>
-                        <option value="3CX">3CX</option>
+                        <option value="Aircall">Aircall</option>
                         <option value="Facetime">Facetime</option>
                         <option value="Email">Email</option>
                         <option value="SMS">SMS</option>
@@ -134,19 +138,22 @@
                 </div>
                 <div>
                     <label>System</label>
-                    <input type="text" id="System">
+                    <select id="System">
+                        <option value="O Range">O Range</option>
+                        <option value="1000 Series">1000 Series</option>
+                        <option value="2000 Series">2000 Series</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <input type="text" id="System_Other" placeholder="Please specify..." style="display: none; margin-top: 10px;">
                 </div>
                 <div>
-                    <label>Job</label>
-                    <input type="text" id="Job">
-                </div>
-                <div>
-                    <label>Category</label>
-                    <select id="Category">
-                        <option value="Query">Query</option>
-                        <option value="Hardware">Hardware</option>
-                        <option value="Software">Software</option>
-                        <option value="Design Change">Design Change</option>
+                    <label>Origin of Fault</label>
+                    <select id="Origin_Of_Fault">
+                        <option value="Controls">Controls</option>
+                        <option value="Manufacturer">Manufacturer</option>
+                        <option value="Design">Design</option>
+                        <option value="Production">Production</option>
+                        <option value="Site">Site</option>
                         <option value="Other">Other</option>
                     </select>
                 </div>
@@ -162,7 +169,7 @@
                     <label>Solution</label>
                     <textarea id="Solution" rows="2"></textarea>
                 </div>
-                <div>
+                <div class="full">
                     <label>Status</label>
                     <select id="Status">
                         <option value="Open">Open</option>
@@ -171,17 +178,7 @@
                         <option value="Requires Site Visit">Requires Site Visit</option>
                     </select>
                 </div>
-                <div>
-                    <label>Who?</label>
-                    <select id="Who">
-                        <option value="Controls">Controls</option>
-                        <option value="Manufacturer">Manufacturer</option>
-                        <option value="Design">Design</option>
-                        <option value="Production">Production</option>
-                        <option value="Site">Site</option>
-                        <option value="Other">Other</option>
-                    </select>
-                </div>
+
                 <div class="full">
                     <button type="submit" id="submitBtn">Submit Ticket</button>
                 </div>
@@ -208,8 +205,31 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // Auto-fill today's date
-        document.getElementById('Date').valueAsDate = new Date();
+        // Auto-fill today's date and current time
+        const setDateTime = () => {
+            const now = new Date();
+            document.getElementById('Date').valueAsDate = now;
+            // Format time to HH:MM for the input field
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('Time').value = `${hours}:${minutes}`;
+        };
+        setDateTime();
+
+        // Show/Hide the "Other" System text box dynamically
+        const systemSelect = document.getElementById('System');
+        const systemOtherInput = document.getElementById('System_Other');
+        
+        systemSelect.addEventListener('change', (e) => {
+            if (e.target.value === 'Other') {
+                systemOtherInput.style.display = 'block';
+                systemOtherInput.required = true;
+            } else {
+                systemOtherInput.style.display = 'none';
+                systemOtherInput.required = false;
+                systemOtherInput.value = ''; // clear it out
+            }
+        });
 
         // 1. Authentication Check
         onAuthStateChanged(auth, (user) => {
@@ -242,21 +262,26 @@
                     newTicketId = querySnapshot.docs[0].data().ticketId + 1;
                 }
 
+                // Handle the 'Other' logic for System before saving
+                let finalSystem = document.getElementById('System').value;
+                if (finalSystem === 'Other') {
+                    finalSystem = "Other: " + document.getElementById('System_Other').value;
+                }
+
                 // Gather data
                 const ticketData = {
                     ticketId: newTicketId,
                     ticketNumber: `TKT-${newTicketId}`,
                     Date: document.getElementById('Date').value,
+                    Time: document.getElementById('Time').value,
                     Engineer: document.getElementById('Engineer').value,
                     Contact_Via: document.getElementById('Contact_Via').value,
-                    System: document.getElementById('System').value,
-                    Job: document.getElementById('Job').value,
-                    Category: document.getElementById('Category').value,
+                    System: finalSystem,
+                    Origin_Of_Fault: document.getElementById('Origin_Of_Fault').value,
                     Reported_Issue: document.getElementById('Reported_Issue').value,
                     Cause: document.getElementById('Cause').value,
                     Solution: document.getElementById('Solution').value,
                     Status: document.getElementById('Status').value,
-                    Who: document.getElementById('Who').value,
                     timestamp: new Date().toISOString()
                 };
 
@@ -269,7 +294,8 @@
                 banner.style.display = 'block';
                 
                 document.getElementById('ticketForm').reset();
-                document.getElementById('Date').valueAsDate = new Date(); // reset date to today
+                setDateTime(); // reset date and time to now
+                systemOtherInput.style.display = 'none'; // hide the other box again
                 
                 // Hide banner after 5 seconds
                 setTimeout(() => { banner.style.display = 'none'; }, 5000);
