@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Settings - Vent Engineering</title>
+    <style>
+        body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            background-color: #f9f9f9; 
+            color: #000;
+            margin: 0; 
+            padding: 20px; 
+        }
+        .container { 
+            max-width: 900px; 
+            margin: 0 auto; 
+        }
+        /* Navigation Bar */
+        .nav { 
+            background: #fff; 
+            padding: 15px 20px; 
+            border: 2px solid #000;
+            border-radius: 8px; 
+            margin-bottom: 30px; 
+            display: flex; 
+            gap: 20px; 
+            align-items: center;
+        }
+        .nav a { 
+            color: #000; 
+            text-decoration: none; 
+            font-weight: bold; 
+            padding: 8px 12px;
+            border-radius: 4px;
+            transition: background 0.2s, color 0.2s;
+        }
+        .nav a:hover, .nav a.active { 
+            background: #000; 
+            color: #fff; 
+        }
+        .nav button {
+            margin-left: auto;
+            background: #000;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .nav button:hover {
+            background: #333;
+        }
+        
+        /* Layout */
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .panel {
+            background: #fff;
+            padding: 30px;
+            border: 2px solid #000;
+            border-radius: 8px;
+        }
+        h2 { margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        h3 { margin-top: 0; color: #333; }
+        
+        /* Form Elements */
+        label { font-weight: bold; display: block; margin-top: 15px; margin-bottom: 5px; font-size: 0.9em; }
+        input { 
+            width: 100%; 
+            padding: 10px; 
+            border: 1px solid #000; 
+            border-radius: 4px; 
+            box-sizing: border-box; 
+        }
+        .btn-action { 
+            background: #000; 
+            color: white; 
+            border: none; 
+            padding: 12px 20px; 
+            font-size: 1em; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin-top: 20px; 
+            font-weight: bold; 
+            width: 100%;
+        }
+        .btn-action:hover { background: #333; }
+        
+        #messageBox {
+            display: none;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .success { background: #e6f4ea; color: #1e4620; border: 1px solid #1e4620; }
+        .error { background: #fce8e6; color: #c5221f; border: 1px solid #c5221f; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="log.html">Log a Ticket</a>
+            <a href="admin.html" class="active">Settings</a>
+            <button id="logoutBtn">Logout</button>
+        </div>
+
+        <div id="messageBox"></div>
+
+        <div class="grid">
+            <div class="panel">
+                <h3>Account Management</h3>
+                <p>Logged in as: <strong id="userEmail">Loading...</strong></p>
+                <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+                
+                <form id="passwordForm">
+                    <label>Update Password</label>
+                    <input type="password" id="newPassword" placeholder="Enter new password (min 6 chars)" required minlength="6">
+                    <button type="submit" class="btn-action">Change Password</button>
+                </form>
+            </div>
+
+            <div class="panel">
+                <h3>Database Actions</h3>
+                <p>Export all support log tickets currently stored in the Firebase cloud database directly to a local CSV file on your computer.</p>
+                
+                <button id="exportBtn" class="btn-action" style="margin-top: 45px;">Download Database to CSV</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs, orderBy, query } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCP85SLMa90kxu0lJVLL0qFUWgHZvZsAOM",
+            authDomain: "engineercalllog.firebaseapp.com",
+            projectId: "engineercalllog",
+            storageBucket: "engineercalllog.firebasestorage.app",
+            messagingSenderId: "1034676535589",
+            appId: "1:1034676535589:web:a3d91c5cf4de54856b9acc",
+            measurementId: "G-F5LM9FBQ8Q"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const messageBox = document.getElementById('messageBox');
+
+        function showMessage(msg, isError = false) {
+            messageBox.innerText = msg;
+            messageBox.className = isError ? 'error' : 'success';
+            messageBox.style.display = 'block';
+            setTimeout(() => { messageBox.style.display = 'none'; }, 5000);
+        }
+
+        // 1. Authentication Check & Display Email
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                window.location.href = "../index.html";
+            } else {
+                document.getElementById('userEmail').innerText = user.email;
+            }
+        });
+
+        // 2. Logout
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            signOut(auth).then(() => {
+                window.location.href = "../index.html";
+            });
+        });
+
+        // 3. Update Password
+        document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newPassword = document.getElementById('newPassword').value;
+            const user = auth.currentUser;
+
+            if (user) {
+                try {
+                    await updatePassword(user, newPassword);
+                    showMessage("Password updated successfully!");
+                    document.getElementById('passwordForm').reset();
+                } catch (error) {
+                    // Firebase requires recent login to change password for security
+                    if(error.code === 'auth/requires-recent-login') {
+                        showMessage("Security requirement: Please log out and log back in before changing your password.", true);
+                    } else {
+                        showMessage(error.message, true);
+                    }
+                }
+            }
+        });
+
+        // 4. Export to CSV Logic
+        document.getElementById('exportBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('exportBtn');
+            btn.innerText = "Generating CSV...";
+            btn.disabled = true;
+
+            try {
+                // Fetch all tickets ordered by ticket ID
+                const q = query(collection(db, "tickets"), orderBy("ticketId", "asc"));
+                const querySnapshot = await getDocs(q);
+                
+                if (querySnapshot.empty) {
+                    showMessage("Database is empty. No tickets to export.", true);
+                    btn.innerText = "Download Database to CSV";
+                    btn.disabled = false;
+                    return;
+                }
+
+                // Define CSV Headers
+                const headers = [
+                    "Ticket Number", "Date", "Engineer", "Contact Via", "System", 
+                    "Job", "Category", "Reported Issue", "Cause", "Solution", "Status", "Who"
+                ];
+
+                const escapeCSV = (str) => {
+                    if (str == null) return '""';
+                    return `"${String(str).replace(/"/g, '""')}"`;
+                };
+
+                let csvContent = headers.map(escapeCSV).join(",") + "\\n";
+
+                // Map data to rows
+                querySnapshot.forEach((doc) => {
+                    const t = doc.data();
+                    const row = [
+                        t.ticketNumber, t.Date, t.Engineer, t.Contact_Via, t.System,
+                        t.Job, t.Category, t.Reported_Issue, t.Cause, t.Solution, t.Status, t.Who
+                    ];
+                    csvContent += row.map(escapeCSV).join(",") + "\\n";
+                });
+
+                // Create and trigger file download
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", `vent_support_log_${new Date().toISOString().split('T')[0]}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showMessage("Database exported to CSV successfully!");
+            } catch (error) {
+                console.error("Error exporting to CSV: ", error);
+                showMessage("Failed to export database. Check console.", true);
+            } finally {
+                btn.innerText = "Download Database to CSV";
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
