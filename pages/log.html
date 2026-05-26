@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Log a Ticket - Vent Engineering</title>
+    <style>
+        body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            background-color: #f9f9f9; 
+            color: #000;
+            margin: 0; 
+            padding: 20px; 
+        }
+        .container { 
+            max-width: 900px; 
+            margin: 0 auto; 
+        }
+        /* Navigation Bar */
+        .nav { 
+            background: #fff; 
+            padding: 15px 20px; 
+            border: 2px solid #000;
+            border-radius: 8px; 
+            margin-bottom: 30px; 
+            display: flex; 
+            gap: 20px; 
+            align-items: center;
+        }
+        .nav a { 
+            color: #000; 
+            text-decoration: none; 
+            font-weight: bold; 
+            padding: 8px 12px;
+            border-radius: 4px;
+            transition: background 0.2s, color 0.2s;
+        }
+        .nav a:hover, .nav a.active { 
+            background: #000; 
+            color: #fff; 
+        }
+        .nav button {
+            margin-left: auto;
+            background: #000;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .nav button:hover {
+            background: #333;
+        }
+        
+        /* Form Layout */
+        .form-container {
+            background: #fff;
+            padding: 30px;
+            border: 2px solid #000;
+            border-radius: 8px;
+        }
+        h2 { margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .full { grid-column: span 2; }
+        label { font-weight: bold; display: block; margin-top: 15px; margin-bottom: 5px; font-size: 0.9em; }
+        input, select, textarea { 
+            width: 100%; 
+            padding: 10px; 
+            border: 1px solid #000; 
+            border-radius: 4px; 
+            box-sizing: border-box; 
+            font-family: inherit; 
+        }
+        button[type="submit"] { 
+            background: #000; 
+            color: white; 
+            border: none; 
+            padding: 15px 20px; 
+            font-size: 1.1em; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin-top: 25px; 
+            font-weight: bold; 
+            width: 100%;
+        }
+        button[type="submit"]:hover { background: #333; }
+        
+        /* Success Message */
+        #successBanner {
+            display: none;
+            background: #e6f4ea;
+            color: #1e4620;
+            border: 1px solid #1e4620;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="log.html" class="active">Log a Ticket</a>
+            <a href="admin.html">Settings</a>
+            <button id="logoutBtn">Logout</button>
+        </div>
+
+        <div id="successBanner">Ticket Logged Successfully!</div>
+
+        <div class="form-container">
+            <h2>Controls Engineer Support Log</h2>
+            <form id="ticketForm" class="grid">
+                <div>
+                    <label>Date</label>
+                    <input type="date" id="Date" required>
+                </div>
+                <div>
+                    <label>Engineer</label>
+                    <input type="text" id="Engineer" required>
+                </div>
+                <div>
+                    <label>Contact Via</label>
+                    <select id="Contact_Via">
+                        <option value="Phone">Phone</option>
+                        <option value="3CX">3CX</option>
+                        <option value="Facetime">Facetime</option>
+                        <option value="Email">Email</option>
+                        <option value="SMS">SMS</option>
+                        <option value="Office">Office</option>
+                    </select>
+                </div>
+                <div>
+                    <label>System</label>
+                    <input type="text" id="System">
+                </div>
+                <div>
+                    <label>Job</label>
+                    <input type="text" id="Job">
+                </div>
+                <div>
+                    <label>Category</label>
+                    <select id="Category">
+                        <option value="Query">Query</option>
+                        <option value="Hardware">Hardware</option>
+                        <option value="Software">Software</option>
+                        <option value="Design Change">Design Change</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="full">
+                    <label>Reported Issue</label>
+                    <textarea id="Reported_Issue" rows="3" required></textarea>
+                </div>
+                <div class="full">
+                    <label>Cause</label>
+                    <textarea id="Cause" rows="2"></textarea>
+                </div>
+                <div class="full">
+                    <label>Solution</label>
+                    <textarea id="Solution" rows="2"></textarea>
+                </div>
+                <div>
+                    <label>Status</label>
+                    <select id="Status">
+                        <option value="Open">Open</option>
+                        <option value="Closed / Resolved">Closed / Resolved</option>
+                        <option value="Awaiting Parts">Awaiting Parts</option>
+                        <option value="Requires Site Visit">Requires Site Visit</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Who?</label>
+                    <select id="Who">
+                        <option value="Controls">Controls</option>
+                        <option value="Manufacturer">Manufacturer</option>
+                        <option value="Design">Design</option>
+                        <option value="Production">Production</option>
+                        <option value="Site">Site</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="full">
+                    <button type="submit" id="submitBtn">Submit Ticket</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCP85SLMa90kxu0lJVLL0qFUWgHZvZsAOM",
+            authDomain: "engineercalllog.firebaseapp.com",
+            projectId: "engineercalllog",
+            storageBucket: "engineercalllog.firebasestorage.app",
+            messagingSenderId: "1034676535589",
+            appId: "1:1034676535589:web:a3d91c5cf4de54856b9acc",
+            measurementId: "G-F5LM9FBQ8Q"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Auto-fill today's date
+        document.getElementById('Date').valueAsDate = new Date();
+
+        // 1. Authentication Check
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                window.location.href = "../index.html";
+            }
+        });
+
+        // 2. Logout Handler
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            signOut(auth).then(() => {
+                window.location.href = "../index.html";
+            });
+        });
+
+        // 3. Form Submission
+        document.getElementById('ticketForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.innerText = "Saving...";
+            submitBtn.disabled = true;
+
+            try {
+                // Determine the next ticket number
+                let newTicketId = 1001;
+                const q = query(collection(db, "tickets"), orderBy("ticketId", "desc"), limit(1));
+                const querySnapshot = await getDocs(q);
+                
+                if (!querySnapshot.empty) {
+                    newTicketId = querySnapshot.docs[0].data().ticketId + 1;
+                }
+
+                // Gather data
+                const ticketData = {
+                    ticketId: newTicketId,
+                    ticketNumber: `TKT-${newTicketId}`,
+                    Date: document.getElementById('Date').value,
+                    Engineer: document.getElementById('Engineer').value,
+                    Contact_Via: document.getElementById('Contact_Via').value,
+                    System: document.getElementById('System').value,
+                    Job: document.getElementById('Job').value,
+                    Category: document.getElementById('Category').value,
+                    Reported_Issue: document.getElementById('Reported_Issue').value,
+                    Cause: document.getElementById('Cause').value,
+                    Solution: document.getElementById('Solution').value,
+                    Status: document.getElementById('Status').value,
+                    Who: document.getElementById('Who').value,
+                    timestamp: new Date().toISOString()
+                };
+
+                // Push to Firestore
+                await addDoc(collection(db, "tickets"), ticketData);
+
+                // Show success, reset form
+                const banner = document.getElementById('successBanner');
+                banner.innerText = `Ticket TKT-${newTicketId} Logged Successfully!`;
+                banner.style.display = 'block';
+                
+                document.getElementById('ticketForm').reset();
+                document.getElementById('Date').valueAsDate = new Date(); // reset date to today
+                
+                // Hide banner after 5 seconds
+                setTimeout(() => { banner.style.display = 'none'; }, 5000);
+
+            } catch (error) {
+                console.error("Error adding document: ", error);
+                alert("Error saving ticket. Check console for details.");
+            } finally {
+                submitBtn.innerText = "Submit Ticket";
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
