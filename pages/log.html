@@ -1,10 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <title>Log a Ticket - Vent Engineering</title>
     <script src="nav.js"></script>
+    <style>
+        body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            background-color: #f9f9f9; 
+            color: #000;
+            margin: 0; 
+            padding: 20px; 
+        }
+        .container { 
+            max-width: 900px; 
+            margin: 0 auto; 
+        }
+        
+        /* Form Layout */
+        .form-container {
+            background: #fff;
+            padding: 30px;
+            border: 2px solid #000;
+            border-radius: 8px;
+        }
+        h2 { margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .full { grid-column: span 2; }
+        label { font-weight: bold; display: block; margin-top: 15px; margin-bottom: 5px; font-size: 0.9em; }
+        input, select, textarea { 
+            width: 100%; 
+            padding: 10px; 
+            border: 1px solid #000; 
+            border-radius: 4px; 
+            box-sizing: border-box; 
+            font-family: inherit; 
+        }
+        button[type="submit"] { 
+            background: #000; 
+            color: white; 
+            border: none; 
+            padding: 15px 20px; 
+            font-size: 1.1em; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin-top: 25px; 
+            font-weight: bold; 
+            width: 100%;
+            transition: background-color 0.3s ease; 
+        }
+        button[type="submit"]:hover { background: #333; }
+        
+        /* Success Message Banner */
+        #successBanner {
+            display: none;
+            background: #e6f4ea;
+            color: #1e4620;
+            border: 1px solid #1e4620;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-    <vent-nav></vent-nav>
+    <div class="container">
+        <vent-nav></vent-nav>
+
         <div id="successBanner">Ticket Logged Successfully!</div>
 
         <div class="form-container">
@@ -106,7 +170,6 @@
         const setDateTime = () => {
             const now = new Date();
             document.getElementById('Date').valueAsDate = now;
-            // Format time to HH:MM for the input field
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             document.getElementById('Time').value = `${hours}:${minutes}`;
@@ -124,7 +187,7 @@
             } else {
                 systemOtherInput.style.display = 'none';
                 systemOtherInput.required = false;
-                systemOtherInput.value = ''; // clear it out
+                systemOtherInput.value = ''; 
             }
         });
 
@@ -135,11 +198,13 @@
             }
         });
 
-        // 2. Logout Handler
-        document.getElementById('logoutBtn').addEventListener('click', () => {
-            signOut(auth).then(() => {
-                window.location.href = "../index.html";
-            });
+        // 2. Universal Logout Handler
+        document.addEventListener('click', (e) => {
+            if(e.target && e.target.id === 'logoutBtn') {
+                signOut(auth).then(() => {
+                    window.location.href = "../index.html";
+                });
+            }
         });
 
         // 3. Form Submission
@@ -151,7 +216,7 @@
             // Immediate visual feedback that processing has started
             submitBtn.innerText = "Saving to Database...";
             submitBtn.disabled = true;
-            submitBtn.style.backgroundColor = '#666'; // Gray out while saving
+            submitBtn.style.backgroundColor = '#666'; 
 
             try {
                 // Determine the next ticket number
@@ -200,13 +265,13 @@
                 
                 // Reset form
                 document.getElementById('ticketForm').reset();
-                setDateTime(); // reset date and time to now
-                systemOtherInput.style.display = 'none'; // hide the other box again
+                setDateTime(); 
+                systemOtherInput.style.display = 'none'; 
                 
                 // Reset button and banner after 3 seconds
                 setTimeout(() => { 
                     banner.style.display = 'none'; 
-                    submitBtn.style.backgroundColor = '#000'; // Back to standard black
+                    submitBtn.style.backgroundColor = '#000'; 
                     submitBtn.innerText = originalText;
                     submitBtn.disabled = false;
                 }, 3000);
@@ -218,9 +283,9 @@
                 submitBtn.style.backgroundColor = '#dc3545';
                 submitBtn.innerText = "Error Saving Ticket";
                 
-                // Reset button after 4 seconds so they can try again
+                // Reset button after 4 seconds
                 setTimeout(() => {
-                    submitBtn.style.backgroundColor = '#000'; // Back to standard black
+                    submitBtn.style.backgroundColor = '#000'; 
                     submitBtn.innerText = originalText;
                     submitBtn.disabled = false;
                 }, 4000);
