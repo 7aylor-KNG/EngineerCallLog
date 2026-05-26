@@ -2,11 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Vent Engineering Support</title>
+    <title>Log a Ticket - Vent Engineering</title>
     <link rel="stylesheet" href="style.css">
     <script src="nav.js"></script>
-    
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container-narrow">
@@ -16,7 +14,7 @@
 
         <div class="form-container">
             <h2>Controls Engineer Support Log</h2>
-            <form id="ticketForm" class="grid">
+            <form id="ticketForm" class="grid-15">
                 <div>
                     <label>Date</label>
                     <input type="date" id="Date" required>
@@ -51,7 +49,7 @@
                     <input type="text" id="System_Other" placeholder="Please specify..." style="display: none; margin-top: 10px;">
                 </div>
                 <div>
-                    <label>Origin of Fault</label>
+                    <label>Origin of Query / Fault</label>
                     <select id="Origin_Of_Fault">
                         <option value="Controls">Controls</option>
                         <option value="Manufacturer">Manufacturer</option>
@@ -109,7 +107,6 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // Auto-fill today's date and current time
         const setDateTime = () => {
             const now = new Date();
             document.getElementById('Date').valueAsDate = now;
@@ -119,7 +116,6 @@
         };
         setDateTime();
 
-        // Show/Hide the "Other" System text box dynamically
         const systemSelect = document.getElementById('System');
         const systemOtherInput = document.getElementById('System_Other');
         
@@ -134,35 +130,22 @@
             }
         });
 
-        // 1. Authentication Check
         onAuthStateChanged(auth, (user) => {
             if (!user) {
                 window.location.href = "../index.html";
             }
         });
 
-        // 2. Universal Logout Handler
-        document.addEventListener('click', (e) => {
-            if(e.target && e.target.id === 'logoutBtn') {
-                signOut(auth).then(() => {
-                    window.location.href = "../index.html";
-                });
-            }
-        });
-
-        // 3. Form Submission
         document.getElementById('ticketForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const submitBtn = document.getElementById('submitBtn');
             const originalText = "Submit Ticket";
             
-            // Immediate visual feedback that processing has started
             submitBtn.innerText = "Saving to Database...";
             submitBtn.disabled = true;
             submitBtn.style.backgroundColor = '#666'; 
 
             try {
-                // Determine the next ticket number
                 let newTicketId = 1001;
                 const q = query(collection(db, "tickets"), orderBy("ticketId", "desc"), limit(1));
                 const querySnapshot = await getDocs(q);
@@ -171,13 +154,11 @@
                     newTicketId = querySnapshot.docs[0].data().ticketId + 1;
                 }
 
-                // Handle the 'Other' logic for System before saving
                 let finalSystem = document.getElementById('System').value;
                 if (finalSystem === 'Other') {
                     finalSystem = "Other: " + document.getElementById('System_Other').value;
                 }
 
-                // Gather data including AUDIT fields
                 const ticketData = {
                     ticketId: newTicketId,
                     ticketNumber: `TKT-${newTicketId}`,
@@ -192,31 +173,27 @@
                     Solution: document.getElementById('Solution').value,
                     Status: document.getElementById('Status').value,
                     timestamp: new Date().toISOString(),
-                    createdBy: auth.currentUser.email, // AUDIT: Who made it
-                    lastUpdatedBy: auth.currentUser.email // AUDIT: Initial state
+                    createdBy: auth.currentUser.email,
+                    lastUpdatedBy: auth.currentUser.email
                 };
 
-                // Push to Firestore
                 await addDoc(collection(db, "tickets"), ticketData);
 
-                // SUCCESS: Change button to Green
                 submitBtn.style.backgroundColor = '#28a745'; 
                 submitBtn.innerText = `Saved! (TKT-${newTicketId})`;
                 
-                // Show success banner 
                 const banner = document.getElementById('successBanner');
                 banner.innerText = `Ticket TKT-${newTicketId} Logged Successfully!`;
                 banner.style.display = 'block';
+                banner.className = 'success-theme';
                 
-                // Reset form
                 document.getElementById('ticketForm').reset();
                 setDateTime(); 
                 systemOtherInput.style.display = 'none'; 
                 
-                // Reset button and banner after 3 seconds
                 setTimeout(() => { 
                     banner.style.display = 'none'; 
-                    submitBtn.style.backgroundColor = '#000'; 
+                    submitBtn.style.backgroundColor = ''; 
                     submitBtn.innerText = originalText;
                     submitBtn.disabled = false;
                 }, 3000);
@@ -224,13 +201,11 @@
             } catch (error) {
                 console.error("Error adding document: ", error);
                 
-                // FAILURE: Change button to Red
                 submitBtn.style.backgroundColor = '#dc3545';
                 submitBtn.innerText = "Error Saving Ticket";
                 
-                // Reset button after 4 seconds
                 setTimeout(() => {
-                    submitBtn.style.backgroundColor = '#000'; 
+                    submitBtn.style.backgroundColor = ''; 
                     submitBtn.innerText = originalText;
                     submitBtn.disabled = false;
                 }, 4000);
