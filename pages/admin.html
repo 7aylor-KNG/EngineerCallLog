@@ -190,7 +190,6 @@
                     showMessage("Password updated successfully!");
                     document.getElementById('passwordForm').reset();
                 } catch (error) {
-                    // Firebase requires recent login to change password for security
                     if(error.code === 'auth/requires-recent-login') {
                         showMessage("Security requirement: Please log out and log back in before changing your password.", true);
                     } else {
@@ -200,7 +199,7 @@
             }
         });
 
-        // 4. Export to CSV Logic
+        // 4. Export to CSV Logic (Updated Headings)
         document.getElementById('exportBtn').addEventListener('click', async () => {
             const btn = document.getElementById('exportBtn');
             btn.innerText = "Generating CSV...";
@@ -218,10 +217,10 @@
                     return;
                 }
 
-                // Define CSV Headers
+                // Define NEW CSV Headers
                 const headers = [
-                    "Ticket Number", "Date", "Engineer", "Contact Via", "System", 
-                    "Job", "Category", "Reported Issue", "Cause", "Solution", "Status", "Who"
+                    "Ticket Number", "Date", "Time", "Engineer", "Contact Via", "System", 
+                    "Origin of Fault", "Reported Issue", "Cause", "Solution", "Status"
                 ];
 
                 const escapeCSV = (str) => {
@@ -231,12 +230,12 @@
 
                 let csvContent = headers.map(escapeCSV).join(",") + "\\n";
 
-                // Map data to rows
+                // Map new data payload to rows
                 querySnapshot.forEach((doc) => {
                     const t = doc.data();
                     const row = [
-                        t.ticketNumber, t.Date, t.Engineer, t.Contact_Via, t.System,
-                        t.Job, t.Category, t.Reported_Issue, t.Cause, t.Solution, t.Status, t.Who
+                        t.ticketNumber, t.Date, t.Time, t.Engineer, t.Contact_Via, t.System,
+                        t.Origin_Of_Fault, t.Reported_Issue, t.Cause, t.Solution, t.Status
                     ];
                     csvContent += row.map(escapeCSV).join(",") + "\\n";
                 });
