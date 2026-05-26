@@ -49,8 +49,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        // Import createUserWithEmailAndPassword for the secondary app trick
-        import { getAuth, onAuthStateChanged, signOut, updatePassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, updatePassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, getDocs, orderBy, query } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -63,12 +62,10 @@
             measurementId: "G-F5LM9FBQ8Q"
         };
 
-        // Initialize Primary App
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // Initialize Secondary App (Used exclusively for creating users without logging the admin out)
         const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
         const secondaryAuth = getAuth(secondaryApp);
 
@@ -81,7 +78,6 @@
             setTimeout(() => { messageBox.style.display = 'none'; }, 6000);
         }
 
-        // 1. Primary Authentication Check
         onAuthStateChanged(auth, (user) => {
             if (!user) {
                 window.location.href = "../index.html";
@@ -90,16 +86,6 @@
             }
         });
 
-        // 2. Universal Logout Handler 
-        document.addEventListener('click', (e) => {
-            if(e.target && e.target.id === 'logoutBtn') {
-                signOut(auth).then(() => {
-                    window.location.href = "../index.html";
-                });
-            }
-        });
-
-        // 3. Update Own Password
         document.getElementById('passwordForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('button');
@@ -128,7 +114,6 @@
             }
         });
 
-        // 4. Create New User (Secondary App Trick)
         document.getElementById('addUserForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('button');
@@ -140,11 +125,8 @@
             const newUserPassword = document.getElementById('newUserPassword').value;
 
             try {
-                // Create the user on the secondary invisible connection
                 await createUserWithEmailAndPassword(secondaryAuth, newUserEmail, newUserPassword);
-                
-                // Immediately sign them out of the secondary connection
-                await signOut(secondaryAuth);
+                await secondaryAuth.signOut();
                 
                 showMessage(`Successfully created account for ${newUserEmail}. They can now log in.`);
                 document.getElementById('addUserForm').reset();
@@ -161,7 +143,6 @@
             }
         });
 
-        // 5. Export to CSV Logic
         document.getElementById('exportBtn').addEventListener('click', async () => {
             const btn = document.getElementById('exportBtn');
             btn.innerText = "Generating CSV...";
@@ -178,9 +159,10 @@
                     return;
                 }
 
+                // Updated CSV Headers here
                 const headers = [
                     "Ticket Number", "Date", "Time", "Engineer", "Contact Via", "System", 
-                    "Origin of Fault", "Reported Issue", "Cause", "Solution", "Status"
+                    "Origin of Query / Fault", "Reported Issue", "Cause", "Solution", "Status"
                 ];
 
                 const escapeCSV = (str) => {
