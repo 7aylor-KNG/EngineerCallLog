@@ -2,71 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Log a Ticket - Vent Engineering</title>
+    <title>Vent Engineering Support</title>
+    <link rel="stylesheet" href="style.css">
     <script src="nav.js"></script>
-    <style>
-        body { 
-            font-family: system-ui, -apple-system, sans-serif; 
-            background-color: #f9f9f9; 
-            color: #000;
-            margin: 0; 
-            padding: 20px; 
-        }
-        .container { 
-            max-width: 900px; 
-            margin: 0 auto; 
-        }
-        
-        /* Form Layout */
-        .form-container {
-            background: #fff;
-            padding: 30px;
-            border: 2px solid #000;
-            border-radius: 8px;
-        }
-        h2 { margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .full { grid-column: span 2; }
-        label { font-weight: bold; display: block; margin-top: 15px; margin-bottom: 5px; font-size: 0.9em; }
-        input, select, textarea { 
-            width: 100%; 
-            padding: 10px; 
-            border: 1px solid #000; 
-            border-radius: 4px; 
-            box-sizing: border-box; 
-            font-family: inherit; 
-        }
-        button[type="submit"] { 
-            background: #000; 
-            color: white; 
-            border: none; 
-            padding: 15px 20px; 
-            font-size: 1.1em; 
-            border-radius: 4px; 
-            cursor: pointer; 
-            margin-top: 25px; 
-            font-weight: bold; 
-            width: 100%;
-            transition: background-color 0.3s ease; 
-        }
-        button[type="submit"]:hover { background: #333; }
-        
-        /* Success Message Banner */
-        #successBanner {
-            display: none;
-            background: #e6f4ea;
-            color: #1e4620;
-            border: 1px solid #1e4620;
-            padding: 15px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-            text-align: center;
-            font-weight: bold;
-        }
-    </style>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <div class="container">
+    <div class="container-narrow">
         <vent-nav></vent-nav>
 
         <div id="successBanner">Ticket Logged Successfully!</div>
