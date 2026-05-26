@@ -1,11 +1,121 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <title>Ticket History - Vent Engineering</title>
     <script src="nav.js"></script>
+    <style>
+        body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            background-color: #f9f9f9; 
+            color: #000;
+            margin: 0; 
+            padding: 20px; 
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+        }
+
+        /* Controls: Search and Filter */
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .controls input, .controls select {
+            padding: 10px;
+            border: 1px solid #000;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        #searchInput { flex-grow: 1; }
+
+        /* Table Styling */
+        .table-container {
+            background: #fff;
+            border: 2px solid #000;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        th, td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #ddd;
+        }
+        th { background-color: #f1f1f1; font-weight: bold; border-bottom: 2px solid #000; }
+        tr:hover { background-color: #f9f9f9; cursor: pointer; }
+        
+        /* Status Badges */
+        .badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+            color: #fff;
+            display: inline-block;
+        }
+        .bg-open { background-color: #dc3545; }
+        .bg-closed { background-color: #28a745; }
+        .bg-waiting { background-color: #ffc107; color: #000; }
+        .bg-site { background-color: #17a2b8; }
+
+        /* Modal Styling (Hidden by default) */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            border: 2px solid #000;
+            width: 100%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+        .close-btn {
+            position: absolute;
+            top: 15px; right: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #666;
+        }
+        .close-btn:hover { color: #000; }
+        
+        /* Modal Form Elements */
+        .modal-content label { font-weight: bold; display: block; margin-top: 15px; margin-bottom: 5px; font-size: 0.9em; }
+        .modal-content input, .modal-content select, .modal-content textarea {
+            width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: inherit;
+        }
+        .modal-content input[readonly], .modal-content textarea[readonly] {
+            background-color: #f1f1f1; border-color: #eee; color: #555;
+        }
+        .btn-update {
+            background: #000; color: white; border: none; padding: 12px 20px; font-size: 1em; 
+            border-radius: 4px; cursor: pointer; margin-top: 20px; font-weight: bold; width: 100%;
+        }
+        .btn-update:hover { background: #333; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    </style>
 </head>
 <body>
-    <vent-nav></vent-nav>
-        <h2>Ticket History</h2>
+    <div class="container">
+        <vent-nav></vent-nav>
+
+        <h2 style="margin-top: 0;">Ticket History</h2>
 
         <div class="controls">
             <input type="text" id="searchInput" placeholder="Search by Ticket Number, Engineer, or Issue...">
@@ -23,7 +133,7 @@
                 <thead>
                     <tr>
                         <th>Ticket</th>
-                        <th>Date</th>
+                        <th>Date & Time</th>
                         <th>Engineer</th>
                         <th>System</th>
                         <th>Issue</th>
@@ -45,7 +155,7 @@
             <form id="updateForm">
                 <input type="hidden" id="modalDocId">
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="grid-2">
                     <div>
                         <label>Engineer</label>
                         <input type="text" id="modalEngineer" readonly>
@@ -53,6 +163,14 @@
                     <div>
                         <label>System</label>
                         <input type="text" id="modalSystem" readonly>
+                    </div>
+                    <div>
+                        <label>Contact Via</label>
+                        <input type="text" id="modalContact" readonly>
+                    </div>
+                    <div>
+                        <label>Origin of Fault</label>
+                        <input type="text" id="modalOrigin" readonly>
                     </div>
                 </div>
 
@@ -84,7 +202,6 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        // Note: Added 'doc' and 'updateDoc' here to handle edits
         import { getFirestore, collection, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -101,16 +218,21 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        let allTickets = []; // Store tickets in memory for searching/filtering
+        let allTickets = [];
 
-        // Authentication & Logout
+        // 1. Authentication Check
         onAuthStateChanged(auth, (user) => {
             if (!user) window.location.href = "../index.html";
             else fetchTickets();
         });
 
-        document.getElementById('logoutBtn').addEventListener('click', () => {
-            signOut(auth).then(() => window.location.href = "../index.html");
+        // 2. Universal Logout Handler
+        document.addEventListener('click', (e) => {
+            if(e.target && e.target.id === 'logoutBtn') {
+                signOut(auth).then(() => {
+                    window.location.href = "../index.html";
+                });
+            }
         });
 
         // Fetch Data
@@ -119,7 +241,6 @@
                 const querySnapshot = await getDocs(collection(db, "tickets"));
                 allTickets = [];
                 querySnapshot.forEach((doc) => {
-                    // Grab the unique Firebase document ID along with the data
                     allTickets.push({ docId: doc.id, ...doc.data() });
                 });
                 
@@ -132,13 +253,13 @@
             }
         }
 
-        // Render the Table based on Search and Filter
+        // Render the Table
         function renderTable() {
             const tbody = document.getElementById('tableBody');
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
             const filterStatus = document.getElementById('statusFilter').value;
 
-            tbody.innerHTML = ''; // Clear current rows
+            tbody.innerHTML = ''; 
 
             const filteredTickets = allTickets.filter(t => {
                 const matchesSearch = 
@@ -157,22 +278,24 @@
             }
 
             filteredTickets.forEach(t => {
-                // Determine badge color
                 let badgeClass = 'bg-open';
                 if (t.Status === 'Closed / Resolved') badgeClass = 'bg-closed';
                 else if (t.Status === 'Awaiting Parts') badgeClass = 'bg-waiting';
                 else if (t.Status === 'Requires Site Visit') badgeClass = 'bg-site';
 
-                // Truncate long issues for the table view
                 let shortIssue = t.Reported_Issue || '';
                 if (shortIssue.length > 45) shortIssue = shortIssue.substring(0, 45) + '...';
 
+                // Format Date and Time nicely
+                let dateTimeDisplay = t.Date || 'N/A';
+                if (t.Time) dateTimeDisplay += ` <br><span style="font-size:0.85em; color:#666;">${t.Time}</span>`;
+
                 const tr = document.createElement('tr');
-                tr.onclick = () => openModal(t.docId); // Click row to open modal
+                tr.onclick = () => openModal(t.docId);
                 
                 tr.innerHTML = `
                     <td><strong>${t.ticketNumber || 'N/A'}</strong></td>
-                    <td>${t.Date || 'N/A'}</td>
+                    <td>${dateTimeDisplay}</td>
                     <td>${t.Engineer || 'N/A'}</td>
                     <td>${t.System || 'N/A'}</td>
                     <td>${shortIssue}</td>
@@ -193,11 +316,13 @@
             const ticket = allTickets.find(t => t.docId === docId);
             if (!ticket) return;
 
-            // Populate fields
+            // Populate Read-Only fields
             document.getElementById('modalTitle').innerText = `Update ${ticket.ticketNumber}`;
             document.getElementById('modalDocId').value = docId;
             document.getElementById('modalEngineer').value = ticket.Engineer || '';
             document.getElementById('modalSystem').value = ticket.System || '';
+            document.getElementById('modalContact').value = ticket.Contact_Via || '';
+            document.getElementById('modalOrigin').value = ticket.Origin_Of_Fault || '';
             document.getElementById('modalIssue').value = ticket.Reported_Issue || '';
             
             // Editable fields
@@ -229,9 +354,7 @@
                 await updateDoc(ticketRef, {
                     Status: newStatus,
                     Cause: newCause,
-                    Solution: newSolution,
-                    // Optional: You could log when it was updated here
-                    // lastUpdated: new Date().toISOString()
+                    Solution: newSolution
                 });
 
                 // Update local memory so table reflects changes immediately
