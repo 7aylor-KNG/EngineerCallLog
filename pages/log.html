@@ -234,7 +234,7 @@
                     finalSystem = "Other: " + document.getElementById('System_Other').value;
                 }
 
-                // Gather data
+                // Gather data including AUDIT fields
                 const ticketData = {
                     ticketId: newTicketId,
                     ticketNumber: `TKT-${newTicketId}`,
@@ -248,7 +248,9 @@
                     Cause: document.getElementById('Cause').value,
                     Solution: document.getElementById('Solution').value,
                     Status: document.getElementById('Status').value,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    createdBy: auth.currentUser.email, // AUDIT: Who made it
+                    lastUpdatedBy: auth.currentUser.email // AUDIT: Initial state
                 };
 
                 // Push to Firestore
