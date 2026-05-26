@@ -195,6 +195,8 @@
                 <textarea id="modalSolution" rows="2" style="border-color: #000;"></textarea>
 
                 <button type="submit" class="btn-update" id="btnUpdate">Save Updates</button>
+                
+                <p id="modalAuditLog" style="margin-top: 15px; font-size: 0.8em; color: #888; text-align: right;"></p>
             </form>
         </div>
     </div>
@@ -330,6 +332,11 @@
             document.getElementById('modalCause').value = ticket.Cause || '';
             document.getElementById('modalSolution').value = ticket.Solution || '';
 
+            // Audit Log Details
+            const creator = ticket.createdBy || 'Legacy User';
+            const updater = ticket.lastUpdatedBy || ticket.createdBy || 'Legacy User';
+            document.getElementById('modalAuditLog').innerText = `Created by: ${creator} | Last updated by: ${updater}`;
+
             modal.style.display = 'flex';
         }
 
@@ -349,12 +356,14 @@
             btn.disabled = true;
 
             try {
-                // Update Firestore
+                // Update Firestore including AUDIT fields
                 const ticketRef = doc(db, "tickets", docId);
                 await updateDoc(ticketRef, {
                     Status: newStatus,
                     Cause: newCause,
-                    Solution: newSolution
+                    Solution: newSolution,
+                    lastUpdatedBy: auth.currentUser.email, // AUDIT: Log who made the edit
+                    lastUpdatedTimestamp: new Date().toISOString()
                 });
 
                 // Update local memory so table reflects changes immediately
@@ -363,6 +372,7 @@
                     allTickets[index].Status = newStatus;
                     allTickets[index].Cause = newCause;
                     allTickets[index].Solution = newSolution;
+                    allTickets[index].lastUpdatedBy = auth.currentUser.email;
                 }
 
                 renderTable(); // Re-draw table
