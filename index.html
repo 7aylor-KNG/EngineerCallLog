@@ -113,8 +113,8 @@
             // Sign in with email and password
             signInWithEmailAndPassword(auth, email, password)
                 .then((userCredential) => {
-                    // Redirect to dashboard on success
-                    window.location.href = "dashboard.html";
+                    // Redirect to the dashboard inside the pages folder
+                    window.location.href = "pages/dashboard.html";
                 })
                 .catch((error) => {
                     // Failed to sign in
