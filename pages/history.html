@@ -13,7 +13,7 @@
         <h2 style="margin-top: 0;">Ticket History</h2>
 
         <div class="controls">
-            <input type="text" id="searchInput" placeholder="Filter loaded tickets by Number, Engineer, or Issue...">
+            <input type="text" id="searchInput" placeholder="Filter loaded tickets by Number, Engineer, Project No, or Issue...">
             <select id="statusFilter">
                 <option value="All">All Statuses</option>
                 <option value="Open">Open</option>
@@ -30,13 +30,14 @@
                         <th>Ticket</th>
                         <th>Date & Time</th>
                         <th>Engineer</th>
+                        <th>Project No.</th>
                         <th>System</th>
                         <th>Issue</th>
                         <th>Status</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody">
-                    <tr><td colspan="6" style="text-align: center;">Loading tickets...</td></tr>
+                    <tr><td colspan="7" style="text-align: center;">Loading tickets...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -58,6 +59,10 @@
                         <input type="text" id="modalEngineer" readonly>
                     </div>
                     <div>
+                        <label>Project Number</label>
+                        <input type="text" id="modalProject" readonly>
+                    </div>
+                    <div>
                         <label>System</label>
                         <input type="text" id="modalSystem" readonly>
                     </div>
@@ -65,7 +70,7 @@
                         <label>Contact Via</label>
                         <input type="text" id="modalContact" readonly>
                     </div>
-                    <div>
+                    <div style="grid-column: span 2;">
                         <label>Origin of Query / Fault</label>
                         <input type="text" id="modalOrigin" readonly>
                     </div>
@@ -170,7 +175,7 @@
                 renderTable();
             } catch (error) {
                 console.error("Error fetching tickets:", error);
-                document.getElementById('tableBody').innerHTML = '<tr><td colspan="6" style="color:red; text-align:center;">Error loading data. Check console.</td></tr>';
+                document.getElementById('tableBody').innerHTML = '<tr><td colspan="7" style="color:red; text-align:center;">Error loading data. Check console.</td></tr>';
             }
         }
 
@@ -185,6 +190,7 @@
                 const matchesSearch = 
                     (t.ticketNumber && t.ticketNumber.toLowerCase().includes(searchTerm)) ||
                     (t.Engineer && t.Engineer.toLowerCase().includes(searchTerm)) ||
+                    (t.Project_Number && t.Project_Number.toLowerCase().includes(searchTerm)) ||
                     (t.Reported_Issue && t.Reported_Issue.toLowerCase().includes(searchTerm));
                 
                 const matchesStatus = filterStatus === 'All' || t.Status === filterStatus;
@@ -193,7 +199,7 @@
             });
 
             if (filteredTickets.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px;">No matching tickets found.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">No matching tickets found.</td></tr>';
                 return;
             }
 
@@ -216,6 +222,7 @@
                     <td><strong>${t.ticketNumber || 'N/A'}</strong></td>
                     <td>${dateTimeDisplay}</td>
                     <td>${t.Engineer || 'N/A'}</td>
+                    <td>${t.Project_Number || 'N/A'}</td>
                     <td>${t.System || 'N/A'}</td>
                     <td>${shortIssue}</td>
                     <td><span class="badge ${badgeClass}">${t.Status || 'Unknown'}</span></td>
@@ -236,6 +243,7 @@
             document.getElementById('modalTitle').innerText = `Update ${ticket.ticketNumber}`;
             document.getElementById('modalDocId').value = docId;
             document.getElementById('modalEngineer').value = ticket.Engineer || '';
+            document.getElementById('modalProject').value = ticket.Project_Number || 'N/A';
             document.getElementById('modalSystem').value = ticket.System || '';
             document.getElementById('modalContact').value = ticket.Contact_Via || '';
             document.getElementById('modalOrigin').value = ticket.Origin_Of_Fault || '';
