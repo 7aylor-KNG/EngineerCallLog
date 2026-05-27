@@ -159,9 +159,9 @@
                     return;
                 }
 
-                // Updated CSV Headers here
+                // CSV Headers updated with Project Number
                 const headers = [
-                    "Ticket Number", "Date", "Time", "Engineer", "Contact Via", "System", 
+                    "Ticket Number", "Date", "Time", "Engineer", "Project Number", "Contact Via", "System", 
                     "Origin of Query / Fault", "Reported Issue", "Cause", "Solution", "Status"
                 ];
 
@@ -174,8 +174,9 @@
 
                 querySnapshot.forEach((doc) => {
                     const t = doc.data();
+                    // Map the data fields directly matching the new headers array
                     const row = [
-                        t.ticketNumber, t.Date, t.Time, t.Engineer, t.Contact_Via, t.System,
+                        t.ticketNumber, t.Date, t.Time, t.Engineer, t.Project_Number, t.Contact_Via, t.System,
                         t.Origin_Of_Fault, t.Reported_Issue, t.Cause, t.Solution, t.Status
                     ];
                     csvContent += row.map(escapeCSV).join(",") + "\n";
