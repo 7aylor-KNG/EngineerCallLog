@@ -15,18 +15,27 @@
         <div class="form-container">
             <h2>Controls Engineer Support Log</h2>
             <form id="ticketForm" class="grid-15">
+                
                 <div>
                     <label>Date</label>
                     <input type="date" id="Date" required>
                 </div>
+                
                 <div>
                     <label>Time</label>
                     <input type="time" id="Time" required>
                 </div>
+                
                 <div>
                     <label>Engineer</label>
                     <input type="text" id="Engineer" required>
                 </div>
+                
+                <div>
+                    <label>Project Number</label>
+                    <input type="text" id="Project_Number" pattern="^6.*" title="Must start with a 6" placeholder="e.g. 60123" required>
+                </div>
+                
                 <div>
                     <label>Contact Via</label>
                     <select id="Contact_Via">
@@ -38,6 +47,7 @@
                         <option value="Office">Office</option>
                     </select>
                 </div>
+                
                 <div>
                     <label>System</label>
                     <select id="System">
@@ -48,7 +58,8 @@
                     </select>
                     <input type="text" id="System_Other" placeholder="Please specify..." style="display: none; margin-top: 10px;">
                 </div>
-                <div>
+                
+                <div class="full">
                     <label>Origin of Query / Fault</label>
                     <select id="Origin_Of_Fault">
                         <option value="Controls">Controls</option>
@@ -59,18 +70,22 @@
                         <option value="Other">Other</option>
                     </select>
                 </div>
+                
                 <div class="full">
-                    <label>Reported Issue</label>
+                    <label>Reported Issue / Query</label>
                     <textarea id="Reported_Issue" rows="3" required></textarea>
                 </div>
+                
                 <div class="full">
                     <label>Cause</label>
                     <textarea id="Cause" rows="2"></textarea>
                 </div>
+                
                 <div class="full">
                     <label>Solution</label>
                     <textarea id="Solution" rows="2"></textarea>
                 </div>
+                
                 <div class="full">
                     <label>Status</label>
                     <select id="Status">
@@ -84,6 +99,7 @@
                 <div class="full">
                     <button type="submit" id="submitBtn">Submit Ticket</button>
                 </div>
+                
             </form>
         </div>
     </div>
@@ -93,6 +109,7 @@
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
+        // Your specific Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyCP85SLMa90kxu0lJVLL0qFUWgHZvZsAOM",
             authDomain: "engineercalllog.firebaseapp.com",
@@ -107,6 +124,7 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        // Auto-fill today's date and current time
         const setDateTime = () => {
             const now = new Date();
             document.getElementById('Date').valueAsDate = now;
@@ -116,6 +134,7 @@
         };
         setDateTime();
 
+        // Show/Hide the "Other" System text box dynamically
         const systemSelect = document.getElementById('System');
         const systemOtherInput = document.getElementById('System_Other');
         
@@ -130,22 +149,35 @@
             }
         });
 
+        // 1. Authentication Check
         onAuthStateChanged(auth, (user) => {
             if (!user) {
                 window.location.href = "../index.html";
             }
         });
 
+        // 2. Universal Logout Handler
+        document.addEventListener('click', (e) => {
+            if(e.target && e.target.id === 'logoutBtn') {
+                signOut(auth).then(() => {
+                    window.location.href = "../index.html";
+                });
+            }
+        });
+
+        // 3. Form Submission
         document.getElementById('ticketForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const submitBtn = document.getElementById('submitBtn');
             const originalText = "Submit Ticket";
             
+            // Immediate visual feedback that processing has started
             submitBtn.innerText = "Saving to Database...";
             submitBtn.disabled = true;
             submitBtn.style.backgroundColor = '#666'; 
 
             try {
+                // Determine the next ticket number
                 let newTicketId = 1001;
                 const q = query(collection(db, "tickets"), orderBy("ticketId", "desc"), limit(1));
                 const querySnapshot = await getDocs(q);
@@ -154,17 +186,20 @@
                     newTicketId = querySnapshot.docs[0].data().ticketId + 1;
                 }
 
+                // Handle the 'Other' logic for System before saving
                 let finalSystem = document.getElementById('System').value;
                 if (finalSystem === 'Other') {
                     finalSystem = "Other: " + document.getElementById('System_Other').value;
                 }
 
+                // Gather data including AUDIT fields and Project Number
                 const ticketData = {
                     ticketId: newTicketId,
                     ticketNumber: `TKT-${newTicketId}`,
                     Date: document.getElementById('Date').value,
                     Time: document.getElementById('Time').value,
                     Engineer: document.getElementById('Engineer').value,
+                    Project_Number: document.getElementById('Project_Number').value,
                     Contact_Via: document.getElementById('Contact_Via').value,
                     System: finalSystem,
                     Origin_Of_Fault: document.getElementById('Origin_Of_Fault').value,
@@ -174,23 +209,28 @@
                     Status: document.getElementById('Status').value,
                     timestamp: new Date().toISOString(),
                     createdBy: auth.currentUser.email,
-                    lastUpdatedBy: auth.currentUser.email
+                    lastUpdatedBy: auth.currentUser.email 
                 };
 
+                // Push to Firestore
                 await addDoc(collection(db, "tickets"), ticketData);
 
+                // SUCCESS: Change button to Green
                 submitBtn.style.backgroundColor = '#28a745'; 
                 submitBtn.innerText = `Saved! (TKT-${newTicketId})`;
                 
+                // Show success banner 
                 const banner = document.getElementById('successBanner');
                 banner.innerText = `Ticket TKT-${newTicketId} Logged Successfully!`;
                 banner.style.display = 'block';
                 banner.className = 'success-theme';
                 
+                // Reset form and re-apply defaults
                 document.getElementById('ticketForm').reset();
                 setDateTime(); 
                 systemOtherInput.style.display = 'none'; 
                 
+                // Reset button and banner after 3 seconds
                 setTimeout(() => { 
                     banner.style.display = 'none'; 
                     submitBtn.style.backgroundColor = ''; 
@@ -201,9 +241,11 @@
             } catch (error) {
                 console.error("Error adding document: ", error);
                 
+                // FAILURE: Change button to Red
                 submitBtn.style.backgroundColor = '#dc3545';
                 submitBtn.innerText = "Error Saving Ticket";
                 
+                // Reset button after 4 seconds
                 setTimeout(() => {
                     submitBtn.style.backgroundColor = ''; 
                     submitBtn.innerText = originalText;
