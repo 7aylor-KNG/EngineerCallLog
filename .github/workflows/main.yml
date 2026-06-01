@@ -1,4 +1,4 @@
-name: Deploy Dashboard to Pages
+name: Deploy Support Portal to Pages
 
 on:
   push:
@@ -21,9 +21,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Inject Firebase Secret everywhere
+      # This command searches EVERY .html file and injects your secret key
+      - name: Inject Firebase Secret into all HTML files
         run: |
-          find . -type f \( -name "*.html" -o -name "*.js" \) -exec sed -i "s/FIREBASE_API_KEY_PLACEHOLDER/${{ secrets.FIREBASE_API_KEY }}/g" {} +
+          find . -type f -name "*.html" -exec sed -i "s/FIREBASE_API_KEY_PLACEHOLDER/${{ secrets.FIREBASE_API_KEY }}/g" {} +
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
