@@ -30,10 +30,8 @@
             transition: all 0.3s ease;
         }
         
-        /* Make timeline charts span the full width of the screen */
         .full-width-chart { grid-column: 1 / -1; } 
         
-        /* Modal Checkbox Styling - Updated for 10 items */
         #toggleContainer {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -75,77 +73,66 @@
         </div>
 
         <div class="charts-grid" id="mainChartGrid">
-            
             <div class="chart-container full-width-chart" id="box-timeline">
                 <h3 style="width: 100%; text-align: center;">Ticket Frequency Over Time (Dates)</h3>
                 <div style="position: relative; height:300px; width:100%">
                     <canvas id="timelineChart"></canvas>
                 </div>
             </div>
-
             <div class="chart-container full-width-chart" id="box-time">
                 <h3 style="width: 100%; text-align: center;">Peak Logging Hours (Time of Day)</h3>
                 <div style="position: relative; height:300px; width:100%">
                     <canvas id="timeChart"></canvas>
                 </div>
             </div>
-
             <div class="chart-container" id="box-status">
                 <h3 style="width: 100%; text-align: center;">Tickets by Status</h3>
                 <div style="position: relative; height:300px; width:100%">
                     <canvas id="statusChart"></canvas>
                 </div>
             </div>
-            
             <div class="chart-container" id="box-system">
                 <h3 style="width: 100%; text-align: center;">Issues by System</h3>
                 <div style="position: relative; height:300px; width:100%">
                     <canvas id="systemChart"></canvas>
                 </div>
             </div>
-
             <div class="chart-container" id="box-engineer">
                 <h3 style="width: 100%; text-align: center;">Total Tickets by Engineer</h3>
                 <div style="position: relative; height:300px; width:100%">
                     <canvas id="engineerChart"></canvas>
                 </div>
             </div>
-
             <div class="chart-container" id="box-workload">
                 <h3 style="width: 100%; text-align: center;">Current Open Workload</h3>
                 <div style="position: relative; height:300px; width:100%">
                     <canvas id="workloadChart"></canvas>
                 </div>
             </div>
-
             <div class="chart-container" id="box-origin">
                 <h3 style="width: 100%; text-align: center;">Origin of Query / Fault</h3>
                 <div style="position: relative; height:300px; width:100%">
                     <canvas id="originChart"></canvas>
                 </div>
             </div>
-
             <div class="chart-container" id="box-day">
                 <h3 style="width: 100%; text-align: center;">Busiest Days of the Week</h3>
                 <div style="position: relative; height:300px; width:100%">
                     <canvas id="dayChart"></canvas>
                 </div>
             </div>
-
             <div class="chart-container" id="box-contact">
                 <h3 style="width: 100%; text-align: center;">Preferred Contact Method</h3>
                 <div style="position: relative; height:300px; width:100%">
                     <canvas id="contactChart"></canvas>
                 </div>
             </div>
-
             <div class="chart-container" id="box-resolution">
                 <h3 style="width: 100%; text-align: center;">Overall Resolution Rate</h3>
                 <div style="position: relative; height:300px; width:100%">
                     <canvas id="resolutionChart"></canvas>
                 </div>
             </div>
-
         </div>
     </div>
 
@@ -154,7 +141,6 @@
             <span class="close-btn" id="closeCustomizeModal">&times;</span>
             <h2 style="margin-top: 0;">Visible Charts</h2>
             <p style="font-size: 0.9em; color: #666;">Select which analytics you want to display on your dashboard.</p>
-            
             <div id="toggleContainer">
                 <div class="toggle-row"><label for="toggle-timeline">Frequency (Dates)</label><input type="checkbox" id="toggle-timeline" data-target="box-timeline" checked></div>
                 <div class="toggle-row"><label for="toggle-time">Peak Hours (Time)</label><input type="checkbox" id="toggle-time" data-target="box-time" checked></div>
@@ -167,5 +153,281 @@
                 <div class="toggle-row"><label for="toggle-contact">Contact Method</label><input type="checkbox" id="toggle-contact" data-target="box-contact" checked></div>
                 <div class="toggle-row"><label for="toggle-resolution">Resolution Rate</label><input type="checkbox" id="toggle-resolution" data-target="box-resolution" checked></div>
             </div>
+            <button class="btn-action" id="savePreferencesBtn" style="margin-top: 10px;">Save Layout</button>
+        </div>
+    </div>
 
-            <button class="btn-action" id="savePreferencesBtn" style="margin-top: 10px;">Save Layout
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        // === REPLACE THESE WITH YOUR CORRECT PROJECT SETTINGS ===
+        const firebaseConfig = {
+            apiKey: "FIREBASE_API_KEY_PLACEHOLDER",
+            authDomain: "engineercalllog.firebaseapp.com",
+            projectId: "engineercalllog",
+            storageBucket: "engineercalllog.firebasestorage.app",
+            messagingSenderId: "1034676535589",
+            appId: "1:1034676535589:web:a3d91c5cf4de54856b9acc",
+            measurementId: "G-F5LM9FBQ8Q"
+        };
+        // ========================================================
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const greyPalette = ['#000000', '#222222', '#444444', '#666666', '#888888', '#AAAAAA', '#CCCCCC'];
+        const getStatusColor = (status) => {
+            if (status === 'Open') return '#dc3545';
+            if (status === 'Closed / Resolved') return '#28a745';
+            if (status === 'Awaiting Parts') return '#ffc107';
+            if (status === 'Requires Site Visit') return '#17a2b8';
+            return '#CCCCCC'; 
+        };
+
+        const customizeModal = document.getElementById('customizeModal');
+        const checkboxes = document.querySelectorAll('#toggleContainer input[type="checkbox"]');
+
+        function applySavedLayout() {
+            checkboxes.forEach(cb => {
+                const targetId = cb.getAttribute('data-target');
+                const box = document.getElementById(targetId);
+                const isSavedTrue = localStorage.getItem(targetId) !== 'false'; 
+                cb.checked = isSavedTrue;
+                if(box) box.style.display = isSavedTrue ? 'flex' : 'none';
+            });
+        }
+
+        document.getElementById('openCustomizeBtn').onclick = () => customizeModal.style.display = 'flex';
+        document.getElementById('closeCustomizeModal').onclick = () => customizeModal.style.display = 'none';
+        
+        document.getElementById('savePreferencesBtn').onclick = () => {
+            checkboxes.forEach(cb => {
+                const targetId = cb.getAttribute('data-target');
+                localStorage.setItem(targetId, cb.checked);
+                const box = document.getElementById(targetId);
+                if(box) box.style.display = cb.checked ? 'flex' : 'none';
+            });
+            customizeModal.style.display = 'none';
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            if (!user) window.location.href = "../index.html";
+            else { applySavedLayout(); loadDashboardData(); }
+        });
+
+        document.addEventListener('click', (e) => {
+            if(e.target && e.target.id === 'logoutBtn') {
+                signOut(auth).then(() => window.location.href = "../index.html");
+            }
+        });
+
+        async function loadDashboardData() {
+            try {
+                const querySnapshot = await getDocs(collection(db, "tickets"));
+                const tickets = [];
+                querySnapshot.forEach((doc) => tickets.push(doc.data()));
+
+                let openCount = 0;
+                let resolvedCount = 0;
+                
+                const statusCounts = {};
+                const systemCounts = {};
+                const timelineCounts = {};
+                const engineerCounts = {};
+                const originCounts = {};
+                const contactCounts = {};
+                const workloadCounts = {};
+                const dayCounts = { 'Monday': 0, 'Tuesday': 0, 'Wednesday': 0, 'Thursday': 0, 'Friday': 0, 'Saturday': 0, 'Sunday': 0 };
+                const timeCounts = {};
+
+                tickets.forEach(t => {
+                    const status = t.Status || "Unknown";
+                    statusCounts[status] = (statusCounts[status] || 0) + 1;
+                    
+                    if (status === "Open" || status === "Awaiting Parts" || status === "Requires Site Visit") {
+                        openCount++;
+                        const eng = t.Engineer || "Unknown";
+                        workloadCounts[eng] = (workloadCounts[eng] || 0) + 1;
+                    } else if (status === "Closed / Resolved") {
+                        resolvedCount++;
+                    }
+
+                    let system = t.System || "Unknown";
+                    if(system.startsWith("Other:")) system = "Other";
+                    systemCounts[system] = (systemCounts[system] || 0) + 1;
+
+                    const date = t.Date || "Unknown";
+                    if(date !== "Unknown") {
+                        timelineCounts[date] = (timelineCounts[date] || 0) + 1;
+                        const d = new Date(date);
+                        const dayName = d.toLocaleDateString('en-GB', { weekday: 'long' });
+                        if(dayCounts[dayName] !== undefined) dayCounts[dayName]++;
+                    }
+
+                    const engineer = t.Engineer || "Unknown";
+                    engineerCounts[engineer] = (engineerCounts[engineer] || 0) + 1;
+
+                    const origin = t.Origin_Of_Fault || "Unknown";
+                    originCounts[origin] = (originCounts[origin] || 0) + 1;
+
+                    const contact = t.Contact_Via || "Unknown";
+                    contactCounts[contact] = (contactCounts[contact] || 0) + 1;
+
+                    const time = t.Time || "Unknown";
+                    if(time !== "Unknown") {
+                        const hour = time.split(':')[0] + ':00';
+                        timeCounts[hour] = (timeCounts[hour] || 0) + 1;
+                    }
+                });
+
+                document.getElementById('totalTickets').innerText = tickets.length;
+                document.getElementById('openTickets').innerText = openCount;
+
+                const sortedDates = Object.keys(timelineCounts).sort();
+                new Chart(document.getElementById('timelineChart').getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: sortedDates.length > 0 ? sortedDates : ['No Data'],
+                        datasets: [{
+                            label: 'Tickets Logged',
+                            data: sortedDates.length > 0 ? sortedDates.map(d => timelineCounts[d]) : [0],
+                            borderColor: '#000000', backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                            borderWidth: 2, fill: true, tension: 0.3
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, plugins: { legend: { display: false } } }
+                });
+
+                const sortedHours = Object.keys(timeCounts).sort();
+                new Chart(document.getElementById('timeChart').getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: sortedHours.length > 0 ? sortedHours : ['No Data'],
+                        datasets: [{
+                            label: 'Tickets by Hour',
+                            data: sortedHours.length > 0 ? sortedHours.map(h => timeCounts[h]) : [0],
+                            borderColor: '#444444', backgroundColor: 'rgba(68, 68, 68, 0.1)',
+                            borderWidth: 2, fill: true, tension: 0.4
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, plugins: { legend: { display: false } } }
+                });
+
+                const statusLabels = Object.keys(statusCounts).length > 0 ? Object.keys(statusCounts) : ['No Data'];
+                new Chart(document.getElementById('statusChart').getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: statusLabels,
+                        datasets: [{
+                            data: statusLabels[0] !== 'No Data' ? Object.values(statusCounts) : [1],
+                            backgroundColor: statusLabels.map(getStatusColor), 
+                            borderWidth: 2, borderColor: '#ffffff'
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+
+                new Chart(document.getElementById('systemChart').getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(systemCounts).length > 0 ? Object.keys(systemCounts) : ['No Data'],
+                        datasets: [{
+                            label: 'Tickets',
+                            data: Object.keys(systemCounts).length > 0 ? Object.values(systemCounts) : [0],
+                            backgroundColor: '#000000', borderRadius: 4
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, plugins: { legend: { display: false } } }
+                });
+
+                new Chart(document.getElementById('engineerChart').getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(engineerCounts).length > 0 ? Object.keys(engineerCounts) : ['No Data'],
+                        datasets: [{
+                            label: 'Total Tickets',
+                            data: Object.keys(engineerCounts).length > 0 ? Object.values(engineerCounts) : [0],
+                            backgroundColor: '#333333', borderRadius: 4
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, plugins: { legend: { display: false } } }
+                });
+
+                new Chart(document.getElementById('workloadChart').getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(workloadCounts).length > 0 ? Object.keys(workloadCounts) : ['All Clear'],
+                        datasets: [{
+                            label: 'Unresolved Tickets',
+                            data: Object.keys(workloadCounts).length > 0 ? Object.values(workloadCounts) : [0],
+                            backgroundColor: '#dc3545',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, plugins: { legend: { display: false } } }
+                });
+
+                new Chart(document.getElementById('originChart').getContext('2d'), {
+                    type: 'polarArea',
+                    data: {
+                        labels: Object.keys(originCounts).length > 0 ? Object.keys(originCounts) : ['No Data'],
+                        datasets: [{
+                            data: Object.keys(originCounts).length > 0 ? Object.values(originCounts) : [1],
+                            backgroundColor: Object.keys(originCounts).length > 0 ? greyPalette : ['#EEEEEE'], 
+                            borderWidth: 2, borderColor: '#ffffff'
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+
+                new Chart(document.getElementById('dayChart').getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(dayCounts),
+                        datasets: [{
+                            label: 'Tickets',
+                            data: Object.values(dayCounts),
+                            backgroundColor: '#666666', borderRadius: 4
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, plugins: { legend: { display: false } } }
+                });
+
+                new Chart(document.getElementById('contactChart').getContext('2d'), {
+                    type: 'pie',
+                    data: {
+                        labels: Object.keys(contactCounts).length > 0 ? Object.keys(contactCounts) : ['No Data'],
+                        datasets: [{
+                            data: Object.keys(contactCounts).length > 0 ? Object.values(contactCounts) : [1],
+                            backgroundColor: Object.keys(contactCounts).length > 0 ? greyPalette : ['#EEEEEE'], 
+                            borderWidth: 2, borderColor: '#ffffff'
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+
+                const hasResolutionData = openCount > 0 || resolvedCount > 0;
+                new Chart(document.getElementById('resolutionChart').getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: hasResolutionData ? ['Resolved', 'Unresolved'] : ['No Data'],
+                        datasets: [{
+                            data: hasResolutionData ? [resolvedCount, openCount] : [1],
+                            backgroundColor: hasResolutionData ? ['#28a745', '#dc3545'] : ['#EEEEEE'], 
+                            borderWidth: 2, borderColor: '#ffffff'
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+
+            } catch (error) {
+                console.error("Error fetching tickets: ", error);
+                document.getElementById('totalTickets').innerText = "Error";
+            }
+        }
+    </script>
+</body>
+</html>
