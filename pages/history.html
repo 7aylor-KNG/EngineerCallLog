@@ -79,13 +79,18 @@
                 <label>Reported Issue</label>
                 <textarea id="modalIssue" rows="3" required style="border-color: #000;"></textarea>
 
-                <!-- UPDATED: MULTIPLE IMAGE CONTAINER -->
                 <div id="imageContainer" style="display: none; margin-bottom: 15px; text-align: center; background: #f9f9f9; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
                     <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">Attached Photos</label>
                     <div id="photoGallery" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
-                        <!-- Images will be injected here by JavaScript -->
-                    </div>
+                        </div>
                     <p style="font-size: 0.8em; color: #666; margin-top: 10px; margin-bottom: 0;">Click any image to open full size</p>
+                </div>
+
+                <div style="background: #f9f9f9; padding: 15px; border: 1px dashed #ccc; border-radius: 4px; margin-bottom: 20px;">
+                    <label style="margin-bottom: 5px; display: block; font-weight: bold;">Add More Photos</label>
+                    <p style="font-size: 0.85em; margin-top: 0; color: #666;">You can have a maximum of 3 photos total per ticket.</p>
+                    <input type="file" id="modalPhotoUpload" accept="image/*" multiple>
+                    <p id="modalFileWarning" style="color: #dc3545; font-size: 0.85em; display: none; margin-top: 5px; font-weight: bold;">Adding these files exceeds the 3 photo maximum. Please select fewer files.</p>
                 </div>
 
                 <hr style="margin: 20px 0;">
@@ -116,7 +121,7 @@
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, getDocs, doc, updateDoc, query, orderBy, limit, startAfter } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        // Your specific EngineerCallLog configuration
+        // === REPLACE THESE WITH YOUR CORRECT PROJECT SETTINGS ===
         const firebaseConfig = {
             apiKey: "FIREBASE_API_KEY_PLACEHOLDER",
             authDomain: "engineercalllog.firebaseapp.com",
@@ -135,6 +140,40 @@
         let lastVisibleDoc = null;
         const TICKETS_PER_PAGE = 50;
 
+        // Auto-Compressor Function brought over from log.html
+        const compressImage = (file) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 1200; 
+                        const MAX_HEIGHT = 1200;
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                        } else {
+                            if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+                        }
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                        resolve(dataUrl);
+                    };
+                    img.onerror = (err) => reject(err);
+                };
+                reader.onerror = (err) => reject(err);
+            });
+        };
+
         onAuthStateChanged(auth, (user) => {
             if (!user) window.location.href = "../index.html";
             else fetchTickets(false); 
@@ -146,11 +185,7 @@
 
         async function fetchTickets(isLoadMore) {
             const loadBtn = document.getElementById('loadMoreBtn');
-            
-            if (isLoadMore) {
-                loadBtn.innerText = "Loading...";
-                loadBtn.disabled = true;
-            }
+            if (isLoadMore) { loadBtn.innerText = "Loading..."; loadBtn.disabled = true; }
 
             try {
                 let q;
@@ -165,7 +200,6 @@
                 
                 if (!querySnapshot.empty) {
                     lastVisibleDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
-                    
                     querySnapshot.forEach((doc) => {
                         allTickets.push({ docId: doc.id, ...doc.data() });
                     });
@@ -221,7 +255,6 @@
                 let shortIssue = t.Reported_Issue || '';
                 if (shortIssue.length > 45) shortIssue = shortIssue.substring(0, 45) + '...';
                 
-                // UPDATED: Check the array for the camera icon indicator
                 const imageIndicator = (t.imageUrls && t.imageUrls.length > 0) || t.imageUrl ? ' 📷' : '';
 
                 let dateTimeDisplay = t.Date || 'N/A';
@@ -261,12 +294,14 @@
             document.getElementById('modalOrigin').value = ticket.Origin_Of_Fault || '';
             document.getElementById('modalIssue').value = ticket.Reported_Issue || '';
             
-            // UPDATED: Handle MULTIPLE images display
+            // Clear the file upload input and any warnings
+            document.getElementById('modalPhotoUpload').value = '';
+            document.getElementById('modalFileWarning').style.display = 'none';
+            
             const imgContainer = document.getElementById('imageContainer');
             const photoGallery = document.getElementById('photoGallery');
-            photoGallery.innerHTML = ''; // Clear previous images
+            photoGallery.innerHTML = ''; 
 
-            // Support both the new array format and the old single image format just in case
             let imagesToDisplay = [];
             if (ticket.imageUrls && ticket.imageUrls.length > 0) {
                 imagesToDisplay = ticket.imageUrls;
@@ -276,7 +311,6 @@
 
             if (imagesToDisplay.length > 0) {
                 imgContainer.style.display = 'block';
-                
                 imagesToDisplay.forEach((imgString, index) => {
                     const link = document.createElement('a');
                     link.href = imgString;
@@ -317,20 +351,54 @@
             const btn = document.getElementById('btnUpdate');
             
             const docId = document.getElementById('modalDocId').value;
-            const newEngineer = document.getElementById('modalEngineer').value;
-            const newProject = document.getElementById('modalProject').value;
-            const newSystem = document.getElementById('modalSystem').value;
-            const newContact = document.getElementById('modalContact').value;
-            const newOrigin = document.getElementById('modalOrigin').value;
-            const newIssue = document.getElementById('modalIssue').value;
-            const newStatus = document.getElementById('modalStatus').value;
-            const newCause = document.getElementById('modalCause').value;
-            const newSolution = document.getElementById('modalSolution').value;
+            
+            // Find the current ticket to check how many images it already has
+            const ticketIndex = allTickets.findIndex(t => t.docId === docId);
+            const currentTicket = allTickets[ticketIndex];
+            
+            let existingImages = [];
+            if (currentTicket.imageUrls) existingImages = [...currentTicket.imageUrls];
+            else if (currentTicket.imageUrl) existingImages = [currentTicket.imageUrl];
 
-            btn.innerText = "Updating Database...";
+            const photoInput = document.getElementById('modalPhotoUpload');
+            let newBase64Photos = []; 
+
+            // Prevent saving if the total images (old + new) exceeds 3
+            if (existingImages.length + photoInput.files.length > 3) {
+                document.getElementById('modalFileWarning').style.display = 'block';
+                return; // Stop the submission
+            } else {
+                document.getElementById('modalFileWarning').style.display = 'none';
+            }
+
+            btn.innerText = "Processing Updates...";
             btn.disabled = true;
 
             try {
+                // Compress any new photos that were attached
+                if (photoInput.files.length > 0) {
+                    btn.innerText = `Compressing ${photoInput.files.length} New Photo(s)...`;
+                    for (let i = 0; i < photoInput.files.length; i++) {
+                         const compressedString = await compressImage(photoInput.files[i]);
+                         newBase64Photos.push(compressedString);
+                    }
+                }
+
+                btn.innerText = "Saving to Database...";
+
+                // Combine existing images with the newly uploaded ones
+                const finalImageUrls = [...existingImages, ...newBase64Photos];
+
+                const newEngineer = document.getElementById('modalEngineer').value;
+                const newProject = document.getElementById('modalProject').value;
+                const newSystem = document.getElementById('modalSystem').value;
+                const newContact = document.getElementById('modalContact').value;
+                const newOrigin = document.getElementById('modalOrigin').value;
+                const newIssue = document.getElementById('modalIssue').value;
+                const newStatus = document.getElementById('modalStatus').value;
+                const newCause = document.getElementById('modalCause').value;
+                const newSolution = document.getElementById('modalSolution').value;
+
                 const ticketRef = doc(db, "tickets", docId);
                 
                 await updateDoc(ticketRef, {
@@ -343,22 +411,23 @@
                     Status: newStatus,
                     Cause: newCause,
                     Solution: newSolution,
+                    imageUrls: finalImageUrls, // Save the combined array
                     lastUpdatedBy: auth.currentUser.email,
                     lastUpdatedTimestamp: new Date().toISOString()
                 });
 
-                const index = allTickets.findIndex(t => t.docId === docId);
-                if (index !== -1) {
-                    allTickets[index].Engineer = newEngineer;
-                    allTickets[index].Project_Number = newProject;
-                    allTickets[index].System = newSystem;
-                    allTickets[index].Contact_Via = newContact;
-                    allTickets[index].Origin_Of_Fault = newOrigin;
-                    allTickets[index].Reported_Issue = newIssue;
-                    allTickets[index].Status = newStatus;
-                    allTickets[index].Cause = newCause;
-                    allTickets[index].Solution = newSolution;
-                    allTickets[index].lastUpdatedBy = auth.currentUser.email;
+                if (ticketIndex !== -1) {
+                    allTickets[ticketIndex].Engineer = newEngineer;
+                    allTickets[ticketIndex].Project_Number = newProject;
+                    allTickets[ticketIndex].System = newSystem;
+                    allTickets[ticketIndex].Contact_Via = newContact;
+                    allTickets[ticketIndex].Origin_Of_Fault = newOrigin;
+                    allTickets[ticketIndex].Reported_Issue = newIssue;
+                    allTickets[ticketIndex].Status = newStatus;
+                    allTickets[ticketIndex].Cause = newCause;
+                    allTickets[ticketIndex].Solution = newSolution;
+                    allTickets[ticketIndex].imageUrls = finalImageUrls; // Update local array
+                    allTickets[ticketIndex].lastUpdatedBy = auth.currentUser.email;
                 }
 
                 renderTable();
