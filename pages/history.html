@@ -79,6 +79,17 @@
                 <label>Reported Issue</label>
                 <textarea id="modalIssue" rows="3" required style="border-color: #000;"></textarea>
 
+                <!-- UPDATED: MULTIPLE IMAGE CONTAINER -->
+                <div id="imageContainer" style="display: none; margin-bottom: 15px; text-align: center; background: #f9f9f9; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                    <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">Attached Photos</label>
+                    <div id="photoGallery" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                        <!-- Images will be injected here by JavaScript -->
+                    </div>
+                    <p style="font-size: 0.8em; color: #666; margin-top: 10px; margin-bottom: 0;">Click any image to open full size</p>
+                </div>
+
+                <hr style="margin: 20px 0;">
+
                 <label>Update Status</label>
                 <select id="modalStatus" style="border-color: #000; font-weight: bold;">
                     <option value="Open">Open</option>
@@ -105,7 +116,7 @@
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, getDocs, doc, updateDoc, query, orderBy, limit, startAfter } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        // IMPORTANT: Ensure these match the specific database from your screenshot!
+        // Your specific EngineerCallLog configuration
         const firebaseConfig = {
             apiKey: "FIREBASE_API_KEY_PLACEHOLDER",
             authDomain: "engineercalllog.firebaseapp.com",
@@ -209,6 +220,9 @@
 
                 let shortIssue = t.Reported_Issue || '';
                 if (shortIssue.length > 45) shortIssue = shortIssue.substring(0, 45) + '...';
+                
+                // UPDATED: Check the array for the camera icon indicator
+                const imageIndicator = (t.imageUrls && t.imageUrls.length > 0) || t.imageUrl ? ' 📷' : '';
 
                 let dateTimeDisplay = t.Date || 'N/A';
                 if (t.Time) dateTimeDisplay += ` <br><span style="font-size:0.85em; color:#666;">${t.Time}</span>`;
@@ -222,7 +236,7 @@
                     <td>${t.Engineer || 'N/A'}</td>
                     <td>${t.Project_Number || 'N/A'}</td>
                     <td>${t.System || 'N/A'}</td>
-                    <td>${shortIssue}</td>
+                    <td>${shortIssue}${imageIndicator}</td>
                     <td><span class="badge ${badgeClass}">${t.Status || 'Unknown'}</span></td>
                 `;
                 tbody.appendChild(tr);
@@ -247,6 +261,43 @@
             document.getElementById('modalOrigin').value = ticket.Origin_Of_Fault || '';
             document.getElementById('modalIssue').value = ticket.Reported_Issue || '';
             
+            // UPDATED: Handle MULTIPLE images display
+            const imgContainer = document.getElementById('imageContainer');
+            const photoGallery = document.getElementById('photoGallery');
+            photoGallery.innerHTML = ''; // Clear previous images
+
+            // Support both the new array format and the old single image format just in case
+            let imagesToDisplay = [];
+            if (ticket.imageUrls && ticket.imageUrls.length > 0) {
+                imagesToDisplay = ticket.imageUrls;
+            } else if (ticket.imageUrl) {
+                imagesToDisplay = [ticket.imageUrl];
+            }
+
+            if (imagesToDisplay.length > 0) {
+                imgContainer.style.display = 'block';
+                
+                imagesToDisplay.forEach((imgString, index) => {
+                    const link = document.createElement('a');
+                    link.href = imgString;
+                    link.target = "_blank";
+                    
+                    const img = document.createElement('img');
+                    img.src = imgString;
+                    img.alt = `Attachment ${index + 1}`;
+                    img.style.maxWidth = '100%';
+                    img.style.maxHeight = '250px';
+                    img.style.border = '1px solid #ccc';
+                    img.style.borderRadius = '4px';
+                    img.style.cursor = 'zoom-in';
+
+                    link.appendChild(img);
+                    photoGallery.appendChild(link);
+                });
+            } else {
+                imgContainer.style.display = 'none';
+            }
+            
             document.getElementById('modalStatus').value = ticket.Status || 'Open';
             document.getElementById('modalCause').value = ticket.Cause || '';
             document.getElementById('modalSolution').value = ticket.Solution || '';
@@ -265,7 +316,6 @@
             e.preventDefault();
             const btn = document.getElementById('btnUpdate');
             
-            // Gather ALL values from the newly unlocked inputs
             const docId = document.getElementById('modalDocId').value;
             const newEngineer = document.getElementById('modalEngineer').value;
             const newProject = document.getElementById('modalProject').value;
@@ -283,7 +333,6 @@
             try {
                 const ticketRef = doc(db, "tickets", docId);
                 
-                // Push ALL updated values to Firebase
                 await updateDoc(ticketRef, {
                     Engineer: newEngineer,
                     Project_Number: newProject,
@@ -298,7 +347,6 @@
                     lastUpdatedTimestamp: new Date().toISOString()
                 });
 
-                // Update the local table array immediately
                 const index = allTickets.findIndex(t => t.docId === docId);
                 if (index !== -1) {
                     allTickets[index].Engineer = newEngineer;
