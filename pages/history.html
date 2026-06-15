@@ -45,6 +45,7 @@
         <button id="loadMoreBtn" class="btn-action">Load Older Tickets</button>
     </div>
 
+    <!-- THE TICKET EDITOR MODAL -->
     <div class="modal-overlay" id="ticketModal">
         <div class="modal-content">
             <span class="close-btn" id="closeModal">&times;</span>
@@ -79,13 +80,16 @@
                 <label>Reported Issue</label>
                 <textarea id="modalIssue" rows="3" required style="border-color: #000;"></textarea>
 
+                <!-- EXISTING IMAGE GALLERY -->
                 <div id="imageContainer" style="display: none; margin-bottom: 15px; text-align: center; background: #f9f9f9; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
                     <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold;">Attached Photos</label>
                     <div id="photoGallery" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
-                        </div>
-                    <p style="font-size: 0.8em; color: #666; margin-top: 10px; margin-bottom: 0;">Click any image to open full size</p>
+                        <!-- Images will be injected here by JavaScript -->
+                    </div>
+                    <p style="font-size: 0.8em; color: #666; margin-top: 10px; margin-bottom: 0;">Click any image to enlarge</p>
                 </div>
 
+                <!-- ADD PHOTOS TO EXISTING TICKET -->
                 <div style="background: #f9f9f9; padding: 15px; border: 1px dashed #ccc; border-radius: 4px; margin-bottom: 20px;">
                     <label style="margin-bottom: 5px; display: block; font-weight: bold;">Add More Photos</label>
                     <p style="font-size: 0.85em; margin-top: 0; color: #666;">You can have a maximum of 3 photos total per ticket.</p>
@@ -114,6 +118,12 @@
                 <p id="modalAuditLog" style="margin-top: 15px; font-size: 0.8em; color: #888; text-align: right;"></p>
             </form>
         </div>
+    </div>
+
+    <!-- NEW: THE ENLARGED PHOTO LIGHTBOX MODAL -->
+    <div class="modal-overlay" id="lightboxModal" style="display: none; z-index: 2000; background-color: rgba(0,0,0,0.85);">
+        <span class="close-btn" id="closeLightbox" style="color: white; font-size: 40px; position: absolute; top: 20px; right: 30px; opacity: 1;">&times;</span>
+        <img id="enlargedImage" src="" alt="Enlarged Ticket Photo" style="max-width: 90vw; max-height: 90vh; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
     </div>
 
     <script type="module">
@@ -280,6 +290,7 @@
         document.getElementById('statusFilter').addEventListener('change', renderTable);
 
         const modal = document.getElementById('ticketModal');
+        const lightboxModal = document.getElementById('lightboxModal'); // The new popup
         
         function openModal(docId) {
             const ticket = allTickets.find(t => t.docId === docId);
@@ -312,10 +323,6 @@
             if (imagesToDisplay.length > 0) {
                 imgContainer.style.display = 'block';
                 imagesToDisplay.forEach((imgString, index) => {
-                    const link = document.createElement('a');
-                    link.href = imgString;
-                    link.target = "_blank";
-                    
                     const img = document.createElement('img');
                     img.src = imgString;
                     img.alt = `Attachment ${index + 1}`;
@@ -325,8 +332,13 @@
                     img.style.borderRadius = '4px';
                     img.style.cursor = 'zoom-in';
 
-                    link.appendChild(img);
-                    photoGallery.appendChild(link);
+                    // UPDATED: Instead of linking to a new tab, open the lightbox!
+                    img.onclick = () => {
+                        document.getElementById('enlargedImage').src = imgString;
+                        lightboxModal.style.display = 'flex';
+                    };
+
+                    photoGallery.appendChild(img);
                 });
             } else {
                 imgContainer.style.display = 'none';
@@ -343,8 +355,20 @@
             modal.style.display = 'flex';
         }
 
+        // UPDATED CLOSE LOGIC: Handle both the Ticket Modal and the Lightbox Modal
         document.getElementById('closeModal').onclick = () => modal.style.display = 'none';
-        window.onclick = (event) => { if (event.target == modal) modal.style.display = 'none'; }
+        document.getElementById('closeLightbox').onclick = () => lightboxModal.style.display = 'none';
+
+        window.onclick = (event) => { 
+            // If they click the black background of the Lightbox, just close the Lightbox
+            if (event.target == lightboxModal) {
+                lightboxModal.style.display = 'none';
+            } 
+            // If they click the background of the Ticket Modal, close the Ticket Modal
+            else if (event.target == modal) {
+                modal.style.display = 'none'; 
+            }
+        }
 
         document.getElementById('updateForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -352,7 +376,6 @@
             
             const docId = document.getElementById('modalDocId').value;
             
-            // Find the current ticket to check how many images it already has
             const ticketIndex = allTickets.findIndex(t => t.docId === docId);
             const currentTicket = allTickets[ticketIndex];
             
@@ -363,7 +386,6 @@
             const photoInput = document.getElementById('modalPhotoUpload');
             let newBase64Photos = []; 
 
-            // Prevent saving if the total images (old + new) exceeds 3
             if (existingImages.length + photoInput.files.length > 3) {
                 document.getElementById('modalFileWarning').style.display = 'block';
                 return; // Stop the submission
@@ -375,7 +397,6 @@
             btn.disabled = true;
 
             try {
-                // Compress any new photos that were attached
                 if (photoInput.files.length > 0) {
                     btn.innerText = `Compressing ${photoInput.files.length} New Photo(s)...`;
                     for (let i = 0; i < photoInput.files.length; i++) {
@@ -386,7 +407,6 @@
 
                 btn.innerText = "Saving to Database...";
 
-                // Combine existing images with the newly uploaded ones
                 const finalImageUrls = [...existingImages, ...newBase64Photos];
 
                 const newEngineer = document.getElementById('modalEngineer').value;
@@ -411,7 +431,7 @@
                     Status: newStatus,
                     Cause: newCause,
                     Solution: newSolution,
-                    imageUrls: finalImageUrls, // Save the combined array
+                    imageUrls: finalImageUrls, 
                     lastUpdatedBy: auth.currentUser.email,
                     lastUpdatedTimestamp: new Date().toISOString()
                 });
@@ -426,7 +446,7 @@
                     allTickets[ticketIndex].Status = newStatus;
                     allTickets[ticketIndex].Cause = newCause;
                     allTickets[ticketIndex].Solution = newSolution;
-                    allTickets[ticketIndex].imageUrls = finalImageUrls; // Update local array
+                    allTickets[ticketIndex].imageUrls = finalImageUrls; 
                     allTickets[ticketIndex].lastUpdatedBy = auth.currentUser.email;
                 }
 
