@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>Ticket History - Vent Engineering</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="nav.js"></script>
+    <link rel="stylesheet" href="../style.css">
+    <script src="../nav.js"></script>
 </head>
 <body>
     <div class="container">
@@ -56,31 +56,28 @@
                 <div class="grid-2">
                     <div>
                         <label>Engineer</label>
-                        <input type="text" id="modalEngineer" readonly>
+                        <input type="text" id="modalEngineer" required style="border-color: #000;">
                     </div>
                     <div>
                         <label>Project Number</label>
-                        <input type="text" id="modalProject" readonly>
+                        <input type="text" id="modalProject" style="border-color: #000;">
                     </div>
                     <div>
                         <label>System</label>
-                        <input type="text" id="modalSystem" readonly>
+                        <input type="text" id="modalSystem" required style="border-color: #000;">
                     </div>
                     <div>
                         <label>Contact Via</label>
-                        <input type="text" id="modalContact" readonly>
+                        <input type="text" id="modalContact" required style="border-color: #000;">
                     </div>
                     <div style="grid-column: span 2;">
                         <label>Origin of Query / Fault</label>
-                        <input type="text" id="modalOrigin" readonly>
+                        <input type="text" id="modalOrigin" required style="border-color: #000;">
                     </div>
                 </div>
 
                 <label>Reported Issue</label>
-                <textarea id="modalIssue" rows="3" readonly></textarea>
-
-                <hr>
-                <p style="margin:0; font-size: 0.85em; color: #666; font-weight: bold;">EDITABLE FIELDS BELOW</p>
+                <textarea id="modalIssue" rows="3" required style="border-color: #000;"></textarea>
 
                 <label>Update Status</label>
                 <select id="modalStatus" style="border-color: #000; font-weight: bold;">
@@ -108,6 +105,7 @@
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, getDocs, doc, updateDoc, query, orderBy, limit, startAfter } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
+        // IMPORTANT: Ensure these match the specific database from your screenshot!
         const firebaseConfig = {
             apiKey: "FIREBASE_API_KEY_PLACEHOLDER",
             authDomain: "engineercalllog.firebaseapp.com",
@@ -243,7 +241,7 @@
             document.getElementById('modalTitle').innerText = `Update ${ticket.ticketNumber}`;
             document.getElementById('modalDocId').value = docId;
             document.getElementById('modalEngineer').value = ticket.Engineer || '';
-            document.getElementById('modalProject').value = ticket.Project_Number || 'N/A';
+            document.getElementById('modalProject').value = ticket.Project_Number || '';
             document.getElementById('modalSystem').value = ticket.System || '';
             document.getElementById('modalContact').value = ticket.Contact_Via || '';
             document.getElementById('modalOrigin').value = ticket.Origin_Of_Fault || '';
@@ -266,7 +264,15 @@
         document.getElementById('updateForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btnUpdate');
+            
+            // Gather ALL values from the newly unlocked inputs
             const docId = document.getElementById('modalDocId').value;
+            const newEngineer = document.getElementById('modalEngineer').value;
+            const newProject = document.getElementById('modalProject').value;
+            const newSystem = document.getElementById('modalSystem').value;
+            const newContact = document.getElementById('modalContact').value;
+            const newOrigin = document.getElementById('modalOrigin').value;
+            const newIssue = document.getElementById('modalIssue').value;
             const newStatus = document.getElementById('modalStatus').value;
             const newCause = document.getElementById('modalCause').value;
             const newSolution = document.getElementById('modalSolution').value;
@@ -276,7 +282,15 @@
 
             try {
                 const ticketRef = doc(db, "tickets", docId);
+                
+                // Push ALL updated values to Firebase
                 await updateDoc(ticketRef, {
+                    Engineer: newEngineer,
+                    Project_Number: newProject,
+                    System: newSystem,
+                    Contact_Via: newContact,
+                    Origin_Of_Fault: newOrigin,
+                    Reported_Issue: newIssue,
                     Status: newStatus,
                     Cause: newCause,
                     Solution: newSolution,
@@ -284,8 +298,15 @@
                     lastUpdatedTimestamp: new Date().toISOString()
                 });
 
+                // Update the local table array immediately
                 const index = allTickets.findIndex(t => t.docId === docId);
                 if (index !== -1) {
+                    allTickets[index].Engineer = newEngineer;
+                    allTickets[index].Project_Number = newProject;
+                    allTickets[index].System = newSystem;
+                    allTickets[index].Contact_Via = newContact;
+                    allTickets[index].Origin_Of_Fault = newOrigin;
+                    allTickets[index].Reported_Issue = newIssue;
                     allTickets[index].Status = newStatus;
                     allTickets[index].Cause = newCause;
                     allTickets[index].Solution = newSolution;
