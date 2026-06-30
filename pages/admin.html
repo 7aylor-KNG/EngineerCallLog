@@ -41,8 +41,12 @@
 
             <div class="panel" style="grid-column: 1 / -1;">
                 <h3>Database Actions</h3>
-                <p>Export all support log tickets currently stored in the Firebase cloud database directly to a local CSV file on your computer.</p>
-                <button id="exportBtn" class="btn-action" style="max-width: 300px;">Download Database to CSV</button>
+                <p>Export your cloud databases directly to local CSV files on your computer.</p>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px;">
+                    <button id="exportTicketsBtn" class="btn-action" style="margin-top: 0;">Download Support Tickets</button>
+                    <button id="exportLoginCodesBtn" class="btn-action" style="margin-top: 0; background: #333;">Download Login Codes</button>
+                </div>
             </div>
         </div>
     </div>
@@ -52,9 +56,8 @@
         import { getAuth, onAuthStateChanged, updatePassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, getDocs, orderBy, query } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        // FIXED: Removed the double comma on the apiKey line
         const firebaseConfig = {
-            apiKey: "FIREBASE_API_KEY_PLACEHOLDER",
+            apiKey: "AIzaSyCP85SLMa90kxu0lJVLL0qFUWgHZvZsAOM",
             authDomain: "engineercalllog.firebaseapp.com",
             projectId: "engineercalllog",
             storageBucket: "engineercalllog.firebasestorage.app",
@@ -80,11 +83,8 @@
         }
 
         onAuthStateChanged(auth, (user) => {
-            if (!user) {
-                window.location.href = "../index.html";
-            } else {
-                document.getElementById('userEmail').innerText = user.email;
-            }
+            if (!user) window.location.href = "../index.html";
+            else document.getElementById('userEmail').innerText = user.email;
         });
 
         document.getElementById('passwordForm').addEventListener('submit', async (e) => {
@@ -93,25 +93,16 @@
             const originalText = btn.innerText;
             btn.innerText = "Updating...";
             btn.disabled = true;
-
             const newPassword = document.getElementById('newPassword').value;
-            const user = auth.currentUser;
-
-            if (user) {
-                try {
-                    await updatePassword(user, newPassword);
-                    showMessage("Password updated successfully!");
-                    document.getElementById('passwordForm').reset();
-                } catch (error) {
-                    if(error.code === 'auth/requires-recent-login') {
-                        showMessage("Security requirement: Please log out and log back in before changing your password.", true);
-                    } else {
-                        showMessage(error.message, true);
-                    }
-                } finally {
-                    btn.innerText = originalText;
-                    btn.disabled = false;
-                }
+            try {
+                await updatePassword(auth.currentUser, newPassword);
+                showMessage("Password updated successfully!");
+                document.getElementById('passwordForm').reset();
+            } catch (error) {
+                showMessage(error.message, true);
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
             }
         });
 
@@ -119,33 +110,26 @@
             e.preventDefault();
             const btn = e.target.querySelector('button');
             const originalText = btn.innerText;
-            btn.innerText = "Creating Account...";
+            btn.innerText = "Creating...";
             btn.disabled = true;
-
             const newUserEmail = document.getElementById('newUserEmail').value;
             const newUserPassword = document.getElementById('newUserPassword').value;
-
             try {
                 await createUserWithEmailAndPassword(secondaryAuth, newUserEmail, newUserPassword);
                 await secondaryAuth.signOut();
-                
-                showMessage(`Successfully created account for ${newUserEmail}. They can now log in.`);
+                showMessage(`Successfully created account for ${newUserEmail}.`);
                 document.getElementById('addUserForm').reset();
             } catch (error) {
-                console.error("Error creating user:", error);
-                if (error.code === 'auth/email-already-in-use') {
-                    showMessage("An account with this email address already exists.", true);
-                } else {
-                    showMessage("Failed to create user: " + error.message, true);
-                }
+                showMessage("Failed to create user: " + error.message, true);
             } finally {
                 btn.innerText = originalText;
                 btn.disabled = false;
             }
         });
 
-        document.getElementById('exportBtn').addEventListener('click', async () => {
-            const btn = document.getElementById('exportBtn');
+        // 1. Export Support Tickets
+        document.getElementById('exportTicketsBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('exportTicketsBtn');
             btn.innerText = "Generating CSV...";
             btn.disabled = true;
 
@@ -154,54 +138,80 @@
                 const querySnapshot = await getDocs(q);
                 
                 if (querySnapshot.empty) {
-                    showMessage("Database is empty. No tickets to export.", true);
-                    btn.innerText = "Download Database to CSV";
+                    showMessage("No support tickets to export.", true);
+                    btn.innerText = "Download Support Tickets";
                     btn.disabled = false;
                     return;
                 }
 
-                // CSV Headers updated with Project Number
-                const headers = [
-                    "Ticket Number", "Date", "Time", "Engineer", "Project Number", "Contact Via", "System", 
-                    "Origin of Query / Fault", "Reported Issue", "Cause", "Solution", "Status"
-                ];
-
-                const escapeCSV = (str) => {
-                    if (str == null) return '""';
-                    return `"${String(str).replace(/"/g, '""')}"`;
-                };
-
+                const headers = ["Ticket Number", "Date", "Time", "Engineer", "Project Number", "Contact Via", "System", "Origin of Query / Fault", "Reported Issue", "Cause", "Solution", "Status"];
+                const escapeCSV = (str) => str == null ? '""' : `"${String(str).replace(/"/g, '""')}"`;
                 let csvContent = headers.map(escapeCSV).join(",") + "\n";
 
                 querySnapshot.forEach((doc) => {
                     const t = doc.data();
-                    // Map the data fields directly matching the new headers array
-                    const row = [
-                        t.ticketNumber, t.Date, t.Time, t.Engineer, t.Project_Number, t.Contact_Via, t.System,
-                        t.Origin_Of_Fault, t.Reported_Issue, t.Cause, t.Solution, t.Status
-                    ];
+                    const row = [t.ticketNumber, t.Date, t.Time, t.Engineer, t.Project_Number, t.Contact_Via, t.System, t.Origin_Of_Fault, t.Reported_Issue, t.Cause, t.Solution, t.Status];
                     csvContent += row.map(escapeCSV).join(",") + "\n";
                 });
 
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const link = document.createElement("a");
-                const url = URL.createObjectURL(blob);
-                link.setAttribute("href", url);
-                link.setAttribute("download", `vent_support_log_${new Date().toISOString().split('T')[0]}.csv`);
-                link.style.visibility = 'hidden';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                
-                showMessage("Database exported to CSV successfully!");
+                downloadCSV(csvContent, `vent_support_log_${new Date().toISOString().split('T')[0]}.csv`);
+                showMessage("Tickets exported successfully!");
             } catch (error) {
-                console.error("Error exporting to CSV: ", error);
-                showMessage("Failed to export database. Check console.", true);
+                showMessage("Failed to export tickets.", true);
             } finally {
-                btn.innerText = "Download Database to CSV";
+                btn.innerText = "Download Support Tickets";
                 btn.disabled = false;
             }
         });
+
+        // 2. Export Login Codes
+        document.getElementById('exportLoginCodesBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('exportLoginCodesBtn');
+            btn.innerText = "Generating CSV...";
+            btn.disabled = true;
+
+            try {
+                const q = query(collection(db, "login_codes"), orderBy("timestamp", "desc"));
+                const querySnapshot = await getDocs(q);
+                
+                if (querySnapshot.empty) {
+                    showMessage("No login codes to export.", true);
+                    btn.innerText = "Download Login Codes";
+                    btn.disabled = false;
+                    return;
+                }
+
+                const headers = ["Date", "Time", "Sales No.", "Project Name", "Software Version", "Name", "Phone No.", "Company", "Postcode"];
+                const escapeCSV = (str) => str == null ? '""' : `"${String(str).replace(/"/g, '""')}"`;
+                let csvContent = headers.map(escapeCSV).join(",") + "\n";
+
+                querySnapshot.forEach((doc) => {
+                    const t = doc.data();
+                    const row = [t.Date, t.Time, t.Sales_No, t.Project_Name, t.Software_Version, t.Name, t.Phone_No, t.Company, t.Postcode];
+                    csvContent += row.map(escapeCSV).join(",") + "\n";
+                });
+
+                downloadCSV(csvContent, `vent_login_codes_${new Date().toISOString().split('T')[0]}.csv`);
+                showMessage("Login Codes exported successfully!");
+            } catch (error) {
+                showMessage("Failed to export login codes.", true);
+            } finally {
+                btn.innerText = "Download Login Codes";
+                btn.disabled = false;
+            }
+        });
+
+        function downloadCSV(csvContent, filename) {
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
     </script>
 </body>
 </html>
