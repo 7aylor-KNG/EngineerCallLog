@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login Code Request - Vent Engineering</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="nav.js"></script>
+</head>
+<body>
+    <div class="container-narrow">
+        <vent-nav></vent-nav>
+
+        <div id="successBanner">Login Code Request Saved Successfully!</div>
+
+        <div class="form-container">
+            <h2>Log a Login Code Request</h2>
+            <form id="loginCodeForm" class="grid-15">
+                
+                <div>
+                    <label>Date</label>
+                    <input type="date" id="Date" required>
+                </div>
+                
+                <div>
+                    <label>Time</label>
+                    <input type="time" id="Time" required>
+                </div>
+
+                <div>
+                    <label>Sales No.</label>
+                    <input type="text" id="Sales_No" placeholder="e.g. SO-12345" required>
+                </div>
+
+                <div>
+                    <label>Project Name</label>
+                    <input type="text" id="Project_Name" required>
+                </div>
+                
+                <div class="full">
+                    <label>Software Version</label>
+                    <input type="text" id="Software_Version" placeholder="e.g. v2.1.4" required>
+                </div>
+
+                <hr style="grid-column: span 2;">
+                <p style="grid-column: span 2; margin:0; font-size: 0.85em; color: #666; font-weight: bold;">CUSTOMER DETAILS</p>
+
+                <div>
+                    <label>Name</label>
+                    <input type="text" id="Name" required>
+                </div>
+                
+                <div>
+                    <label>Phone No.</label>
+                    <input type="tel" id="Phone_No" required>
+                </div>
+                
+                <div>
+                    <label>Company</label>
+                    <input type="text" id="Company" required>
+                </div>
+                
+                <div>
+                    <label>Postcode</label>
+                    <input type="text" id="Postcode" required>
+                </div>
+
+                <div class="full">
+                    <button type="submit" id="submitBtn">Submit Request</button>
+                </div>
+                
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCP85SLMa90kxu0lJVLL0qFUWgHZvZsAOM",
+            authDomain: "engineercalllog.firebaseapp.com",
+            projectId: "engineercalllog",
+            storageBucket: "engineercalllog.firebasestorage.app",
+            messagingSenderId: "1034676535589",
+            appId: "1:1034676535589:web:a3d91c5cf4de54856b9acc",
+            measurementId: "G-F5LM9FBQ8Q"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Auto-fill today's date and current time
+        const setDateTime = () => {
+            const now = new Date();
+            document.getElementById('Date').valueAsDate = now;
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('Time').value = `${hours}:${minutes}`;
+        };
+        setDateTime();
+
+        // Authentication Check
+        onAuthStateChanged(auth, (user) => {
+            if (!user) window.location.href = "../index.html";
+        });
+
+        // Universal Logout Handler
+        document.addEventListener('click', (e) => {
+            if(e.target && e.target.id === 'logoutBtn') {
+                signOut(auth).then(() => window.location.href = "../index.html");
+            }
+        });
+
+        // Form Submission
+        document.getElementById('loginCodeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = document.getElementById('submitBtn');
+            const originalText = "Submit Request";
+            
+            submitBtn.innerText = "Saving to Database...";
+            submitBtn.disabled = true;
+            submitBtn.style.backgroundColor = '#666'; 
+
+            try {
+                // Gather data from the new fields
+                const requestData = {
+                    Date: document.getElementById('Date').value,
+                    Time: document.getElementById('Time').value,
+                    Sales_No: document.getElementById('Sales_No').value,
+                    Project_Name: document.getElementById('Project_Name').value,
+                    Software_Version: document.getElementById('Software_Version').value,
+                    Name: document.getElementById('Name').value,
+                    Phone_No: document.getElementById('Phone_No').value,
+                    Company: document.getElementById('Company').value,
+                    Postcode: document.getElementById('Postcode').value,
+                    timestamp: new Date().toISOString(),
+                    createdBy: auth.currentUser.email
+                };
+
+                // Push to a NEW collection specifically for Login Codes
+                await addDoc(collection(db, "login_codes"), requestData);
+
+                // Visual Success
+                submitBtn.style.backgroundColor = '#28a745'; 
+                submitBtn.innerText = `Request Saved!`;
+                
+                const banner = document.getElementById('successBanner');
+                banner.style.display = 'block';
+                banner.className = 'success-theme';
+                
+                // Reset form
+                document.getElementById('loginCodeForm').reset();
+                setDateTime(); 
+                
+                setTimeout(() => { 
+                    banner.style.display = 'none'; 
+                    submitBtn.style.backgroundColor = ''; 
+                    submitBtn.innerText = originalText;
+                    submitBtn.disabled = false;
+                }, 3000);
+
+            } catch (error) {
+                console.error("Error adding document: ", error);
+                submitBtn.style.backgroundColor = '#dc3545';
+                submitBtn.innerText = "Error Saving Request";
+                
+                setTimeout(() => {
+                    submitBtn.style.backgroundColor = ''; 
+                    submitBtn.innerText = originalText;
+                    submitBtn.disabled = false;
+                }, 4000);
+            }
+        });
+    </script>
+</body>
+</html>
